@@ -9,18 +9,18 @@ const {
 } = require("../controllers/categoryController");
 
 // CREATE
-router.post("/", createCategory);
+router.post("/createCategory", createCategory);
 
 // READ ALL
-router.get("/", getAllCategories);
+router.get("/getAllCategories", getAllCategories);
 
 // READ ONE
-router.get("/:id", getCategoryById);
+router.get("/getCategoryById/:id", getCategoryById);
 
 // UPDATE
-router.put("/:id", updateCategory);
+router.patch("/updateCategory/:id", updateCategory);
 
 // DELETE
-router.delete("/:id", deleteCategory);
+router.delete("/deleteCategory/:id", deleteCategory);
 
 module.exports = router;

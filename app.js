@@ -29,6 +29,10 @@ const corsOptions = {
 };
 
 const UserRoutes = require("./routes/userRoutes");
+const CategoryRoutes = require("./routes/categoryRouter")
+const InventoryRoutes = require("./routes/inventoryRouter")
+const variantRoutes = require("./routes/variantRoutes");
+const ReviewRoutes = require("./routes/reviewRoutes")
 
 app.use(helmet()); // Mitigates XSS attacks and ClickJacking
 app.use(cors(corsOptions));
@@ -42,6 +46,10 @@ app.get("/", (req, res) => {
   });
  
 app.use("/api/users", UserRoutes);
+app.use("/api/category",CategoryRoutes);
+app.use("/api/inventory",InventoryRoutes);
+app.use("/api/variants", variantRoutes);
+app.use("/api/review",ReviewRoutes);
 // Global error handling middleware
 app.use(errorHandler);
 
