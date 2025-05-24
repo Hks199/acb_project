@@ -38,7 +38,7 @@ const addReview = async (req, res, next) => {
   };
   
 
-// GET all reviews for all products
+// GET all reviews for all products  (Not In Use)
 const getAllReviews = async (req, res, next) => {
   try {
     const reviews = await ProductReview.find()
@@ -90,7 +90,7 @@ const getReviewsByProduct = async (req, res, next) => {
 // DELETE a specific review
 const deleteReview = async (req, res, next) => {
   try {
-    const { productId, reviewId } = req.params;
+    const { productId, customerId } = req.params;
 
     const productReview = await ProductReview.findOne({ productId });
 
@@ -99,7 +99,7 @@ const deleteReview = async (req, res, next) => {
     }
 
     const updatedReviews = productReview.review_and_rating.filter(
-      (rev, index) => index.toString() !== reviewId
+        (rev) => rev.customerId.toString() !== customerId
     );
 
     productReview.review_and_rating = updatedReviews;
