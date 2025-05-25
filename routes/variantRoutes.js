@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const fileUpload = require("express-fileupload");
 const {
   createVariant,
   getAllVariants,
@@ -7,6 +8,9 @@ const {
   updateVariant,
   deleteVariant,
 } = require("../controllers/variantController");
+
+// Middleware to handle file upload
+router.use(fileUpload({ useTempFiles: true }));
 
 // CRUD routes
 router.post("/createVariant", createVariant);

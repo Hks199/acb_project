@@ -4,13 +4,13 @@ const productSchema = new mongoose.Schema(
   {
     category_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Category", // assuming you have a Category model
+      ref: "Category",
       required: true,
     },
 
     vendor_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // assuming you have a Vendor model
+      ref: "User",
       required: true,
     },
 
@@ -21,7 +21,7 @@ const productSchema = new mongoose.Schema(
     },
 
     description: {
-      type: mongoose.Schema.Types.Mixed, // Accepts dynamic key-value pairs
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
 
@@ -38,12 +38,19 @@ const productSchema = new mongoose.Schema(
     },
 
     imageUrls: {
-      type: [String], // Array of image URLs
+      type: [String], // Public URLs for rendering images
       validate: {
-        validator: function (arr) {
-          return arr.every(url => typeof url === "string");
-        },
+        validator: arr => arr.every(url => typeof url === "string"),
         message: "All image URLs must be strings.",
+      },
+    },
+
+    imageKeys: {
+      type: [String], // S3 object keys for deletion
+      required: true,
+      validate: {
+        validator: arr => arr.every(key => typeof key === "string"),
+        message: "All image keys must be strings.",
       },
     },
 
@@ -51,15 +58,17 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    avg_rating : {
-      type : Number,
-      default : 0,
-      max : 0,
-      min : 0
+
+    avg_rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
     },
-    review_count : {
-      type : Number,
-      default : 0
+
+    review_count: {
+      type: Number,
+      default: 0,
     }
   },
   { timestamps: true }

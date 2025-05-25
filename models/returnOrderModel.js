@@ -55,12 +55,23 @@ const returnedOrderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    returnImages: [
-      {
-        type: String, // Image URLs or paths
-        required: true,
-      }
-    ],
+    returnImages: {
+      type: [String],
+      validate: {
+        validator: function (arr) {
+          return arr.every(url => typeof url === "string");
+        },
+        message: "All image URLs must be strings.",
+      },
+    },
+    imageKeys: {
+      type: [String], // S3 object keys for deletion
+      required: true,
+      validate: {
+        validator: arr => arr.every(key => typeof key === "string"),
+        message: "All image keys must be strings.",
+      },
+    },
   },
   { timestamps: true }
 );

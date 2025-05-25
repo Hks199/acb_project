@@ -1,13 +1,51 @@
 const Variant = require("../models/variantModel.js");
 const { CustomError } = require("../errors/CustomErrorHandler.js"); // adjust path as per your structure
-
+const {s3UploadHandler,s3DeleteHandler,s3ReplaceHandler} = require("../helpers/s3BucketUploadHandler");
 // CREATE
 const createVariant = async (req, res, next) => {
   try {
-    const variant = await Variant.create(req.body);
-    res.status(201).json({ success: true, variant });
-  } catch (error) {
-    next(new CustomError("CreateVariantError", error.message, 400));
+    const { product_id, variant_attributes, price, stock } = req.body;
+
+    if (!product_id || !variant_attributes || !price) {
+      return res.status(400).json({
+        success: false,
+        message: "product_id, variant_attributes, and price are required",
+      });
+    }
+
+    if (!req.files || !req.files.images) {
+      return res.status(400).json({ success: false, message: "Images are required" });
+    }
+
+    const images = Array.isArray(req.files.images)
+      ? req.files.images
+      : [req.files.images];
+
+    const uploadedImages = await Promise.all(
+      images.map(file => s3UploadHandler(file, "variants"))
+    );
+
+    const imageUrls = uploadedImages.map(img => img.publicUrl);
+    const imageKeys = uploadedImages.map(img => img.fileKey);
+
+    const newVariant = new Variant({
+      product_id,
+      variant_attributes,
+      price,
+      stock,
+      imageUrls,
+      imageKeys,
+    });
+
+    await newVariant.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Variant created successfully",
+      data: newVariant,
+    });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -35,27 +73,82 @@ const getVariantById = async (req, res, next) => {
 // UPDATE
 const updateVariant = async (req, res, next) => {
   try {
-    const variant = await Variant.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
+    const { id } = req.params;
+
+    const existingVariant = await Variant.findById(id);
+    if (!existingVariant) {
+      return res.status(404).json({ success: false, message: "Variant not found" });
+    }
+
+    const { variant_attributes, price, stock, isActive } = req.body;
+
+    // Handle image replacement if files provided
+    if (req.files && req.files.images) {
+      const images = Array.isArray(req.files.images)
+        ? req.files.images
+        : [req.files.images];
+
+      if (images.length !== existingVariant.imageKeys.length) {
+        return res.status(400).json({
+          success: false,
+          message: `You must upload exactly ${existingVariant.imageKeys.length} images to replace existing ones.`,
+        });
+      }
+
+      const updatedImageData = await Promise.all(
+        images.map((file, idx) =>
+          s3ReplaceHandler(file, existingVariant.imageKeys[idx])
+        )
+      );
+
+      existingVariant.imageUrls = updatedImageData.map(item => item.publicUrl);
+    }
+
+    // Update fields
+    if (variant_attributes) existingVariant.variant_attributes = variant_attributes;
+    if (price) existingVariant.price = price;
+    if (stock) existingVariant.stock = stock;
+    if (typeof isActive === "boolean") existingVariant.isActive = isActive;
+
+    await existingVariant.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Variant updated successfully",
+      data: existingVariant,
     });
-    if (!variant) return next(new CustomError("NotFound", "Variant not found", 404));
-    res.status(200).json({ success: true, variant });
-  } catch (error) {
-    next(new CustomError("UpdateVariantError", error.message, 400));
+  } catch (err) {
+    next(err);
   }
 };
+
 
 // DELETE
 const deleteVariant = async (req, res, next) => {
   try {
-    const variant = await Variant.findByIdAndDelete(req.params.id);
-    if (!variant) return next(new CustomError("NotFound", "Variant not found", 404));
-    res.status(200).json({ success: true, message: "Variant deleted successfully." });
-  } catch (error) {
-    next(new CustomError("DeleteVariantError", error.message, 500));
+    const { id } = req.params;
+
+    const variant = await Variant.findById(id);
+    if (!variant) {
+      return res.status(404).json({ success: false, message: "Variant not found" });
+    }
+
+    // Delete all images from S3
+    await Promise.all(
+      variant.imageKeys.map(key => s3DeleteHandler(key))
+    );
+
+    await variant.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: "Variant deleted successfully",
+    });
+  } catch (err) {
+    next(err);
   }
 };
+
 
 module.exports = {
   createVariant,

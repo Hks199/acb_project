@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const fileUpload = require("express-fileupload");
 const {
   createProduct,
   getAllProducts,
@@ -7,6 +8,9 @@ const {
   updateProduct,
   deleteProduct,
 } = require("../controllers/inventroryController");
+
+// Middleware to handle file upload
+router.use(fileUpload({ useTempFiles: true }));
 
 router.post("/createProduct", createProduct);
 router.get("/getAllProducts", getAllProducts);
