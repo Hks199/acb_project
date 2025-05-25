@@ -1,32 +1,39 @@
 const CancelledOrder = require("../models/cancelOrderModel.js");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
 
-const createOrUpdateCancelledOrder = async ({
-  orderId,
-  user_id,
-  cancelledItems,
-  cancellationReason,
-}) => {
-  if (!orderId || !user_id || !Array.isArray(cancelledItems) || cancelledItems.length === 0) {
-    return {
-      success: false,
-      message: "Missing required fields or cancelledItems array is empty",
-    };
+const createOrUpdateCancelledOrder = async (
+  {
+    orderId,
+    user_id,
+    cancelledItems,
+    cancellationReason,
+  },
+  session
+) => {
+  if (
+    !orderId ||
+    !user_id ||
+    !Array.isArray(cancelledItems) ||
+    cancelledItems.length === 0
+  ) {
+    throw new CustomError("Missing required fields or cancelledItems array is empty", 400);
+  }
+
+  // Validate cancelledItems content
+  for (const item of cancelledItems) {
+    if (!item.total_price || typeof item.total_price !== "number") {
+      throw new CustomError("Each cancelled item must have a valid total_price", 400);
+    }
   }
 
   // Calculate refund amount
-  const refundAmount = cancelledItems.reduce((sum, item) => {
-    if (!item.total_price) {
-      throw new Error("Each cancelled item must have total_price");
-    }
-    return sum + item.total_price;
-  }, 0);
+  const refundAmount = cancelledItems.reduce((sum, item) => sum + item.total_price, 0);
 
   try {
-    let cancelledOrder = await CancelledOrder.findOne({ orderId });
+    let cancelledOrder = await CancelledOrder.findOne({ orderId }).session(session);
 
     if (cancelledOrder) {
-      // Update existing order
+      // Update existing cancelled order
       cancelledOrder.cancelledItems.push(...cancelledItems);
       cancelledOrder.totalRefundAmount += refundAmount;
 
@@ -34,7 +41,7 @@ const createOrUpdateCancelledOrder = async ({
         cancelledOrder.cancellationReason = cancellationReason;
       }
 
-      await cancelledOrder.save();
+      await cancelledOrder.save({ session });
 
       return {
         success: true,
@@ -55,7 +62,7 @@ const createOrUpdateCancelledOrder = async ({
       isProcessed: false,
     });
 
-    await newCancelledOrder.save();
+    await newCancelledOrder.save({ session });
 
     return {
       success: true,
@@ -63,11 +70,9 @@ const createOrUpdateCancelledOrder = async ({
       data: newCancelledOrder,
     };
   } catch (error) {
-    return {
-      success: false,
-      message: "Server error",
-      error: error.message,
-    };
+    throw error instanceof CustomError
+      ? error
+      : new CustomError(error.message || "Failed to process cancelled order", 500);
   }
 };
 

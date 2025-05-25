@@ -148,6 +148,26 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
+const updateProductsStock = async (orderedItems, session) => {
+  for (const item of orderedItems) {
+    const product = await Product.findById(item.product_id).session(session);
+    if (!product) {
+      throw new CustomError(`Product not found: ${item.product_id}`, 404);
+    }
+
+    const updatedStock = product.stock - item.quantity;
+    if (updatedStock < 0) {
+      throw new CustomError(`Insufficient product stock: ${item.product_id}`, 400);
+    }
+
+    product.stock = updatedStock;
+    await product.save({ session });
+  }
+};
+
+
+
+
 
 module.exports = {
   createProduct,
@@ -155,4 +175,5 @@ module.exports = {
   getProductById,
   updateProduct,
   deleteProduct,
+  updateProductsStock
 };

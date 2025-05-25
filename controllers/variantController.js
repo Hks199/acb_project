@@ -149,6 +149,24 @@ const deleteVariant = async (req, res, next) => {
   }
 };
 
+const updateVariantsStock = async (orderedItems, session) => {
+  for (const item of orderedItems) {
+    const variant = await Variant.findById(item.variant_id).session(session);
+    if (!variant) {
+      throw new CustomError(`Variant not found: ${item.variant_id}`, 404);
+    }
+
+    const updatedStock = variant.stock - item.quantity;
+    if (updatedStock < 0) {
+      throw new CustomError(`Insufficient variant stock: ${item.variant_id}`, 400);
+    }
+
+    variant.stock = updatedStock;
+    await variant.save({ session });
+  }
+};
+
+
 
 module.exports = {
   createVariant,
@@ -156,4 +174,5 @@ module.exports = {
   getVariantById,
   updateVariant,
   deleteVariant,
+  updateVariantsStock
 };

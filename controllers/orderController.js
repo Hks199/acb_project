@@ -4,11 +4,17 @@ const { CustomError } = require("../errors/CustomErrorHandler.js");
 const crypto = require("crypto");
 const {createOrUpdateCancelledOrder} = require("./cancelOrderController.js")
 const {createReturnedOrder} = require("./returnOrderController.js")
+const {updateProductsStock} = require("./inventroryController.js");
+const {updateVariantsStock} = require("./variantController.js")
 const mongoose = require("mongoose");
 
 
 const createOrder = async (req, res, next) => {
+  const session = await mongoose.startSession();
+
   try {
+    session.startTransaction();
+
     const {
       user_id,
       orderedItems,
@@ -21,30 +27,42 @@ const createOrder = async (req, res, next) => {
 
     const totalAmount = subtotal + tax + deliveryCharge;
 
-    // STEP 1: Create Razorpay order
+    // Step 1: Create Razorpay order
     const razorpayOrder = await razorpay.orders.create({
-      amount: totalAmount * 100, // in paise
+      amount: totalAmount * 100, // paise
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     });
 
-    // STEP 2: Save order to DB
-    const order = await Order.create({
-      user_id,
-      orderedItems,
-      shippingAddress,
-      paymentMethod,
-      subtotal,
-      tax,
-      deliveryCharge,
-      totalAmount,
-      razorpayOrderId: razorpayOrder.id,
-      currency: razorpayOrder.currency,
-    });
+    // Step 2: Save order in DB inside transaction
+    const order = await Order.create(
+      [
+        {
+          user_id,
+          orderedItems,
+          shippingAddress,
+          paymentMethod,
+          subtotal,
+          tax,
+          deliveryCharge,
+          totalAmount,
+          razorpayOrderId: razorpayOrder.id,
+          currency: razorpayOrder.currency,
+        },
+      ],
+      { session }
+    );
+
+    // Step 3: Update stocks using the same session
+    await updateProductsStock(orderedItems, session);
+    await updateVariantsStock(orderedItems, session);
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json({
       success: true,
-      order,
+      order: order[0], // created via array
       razorpayOrder: {
         id: razorpayOrder.id,
         amount: razorpayOrder.amount,
@@ -52,9 +70,16 @@ const createOrder = async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(new CustomError("CreateOrderError", error.message, 500));
+    await session.abortTransaction();
+    session.endSession();
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError("CreateOrderError", error.message, 500)
+    );
   }
 };
+
 
 const verifyPayment = async (req, res, next) => {
   try {
@@ -159,8 +184,6 @@ const handleAdminOrderAction = async (req, res, next) => {
       next(new CustomError("AdminOrderActionError", error.message, 500));
     }
   };
-
-
 
 const cancelOrReturnOrderItem = async (req, res, next) => {
     const session = await mongoose.startSession();

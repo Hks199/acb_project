@@ -3,36 +3,39 @@ const ReturnedOrder = require("../models/returnOrderModel");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
 const {s3UploadHandler,s3DeleteHandler,s3ReplaceHandler} = require("../helpers/s3BucketUploadHandler");
 
-// CREATE
-const createReturnedOrder = async ({
-  orderId,
-  user_id,
-  product_id,
-  variant_id,
-  quantity,
-  price_per_unit,
-  returnReason,
-  returnImages, // array of image files (e.g., from req.files.returnImages)
-}) => {
+const createReturnedOrder = async (
+  {
+    orderId,
+    user_id,
+    product_id,
+    variant_id,
+    quantity,
+    price_per_unit,
+    returnReason,
+    returnImages, // Array of image files (e.g., from req.files.returnImages)
+  },
+  session
+) => {
   try {
     if (!orderId || !user_id || !product_id || !quantity || !price_per_unit) {
-      throw new CustomError("Missing required fields for return order", 400);
+      throw new CustomError("Missing required fields for returned order", 400);
     }
 
     const total_price = quantity * price_per_unit;
-
     const uploadedImageUrls = [];
     const uploadedImageKeys = [];
 
-    if (returnImages && Array.isArray(returnImages)) {
+    if (Array.isArray(returnImages) && returnImages.length > 0) {
       for (const image of returnImages) {
+        if (!image) continue;
+
         const { fileKey, publicUrl } = await s3UploadHandler(image, "return-orders");
         uploadedImageUrls.push(publicUrl);
         uploadedImageKeys.push(fileKey);
       }
     }
 
-    const returnedDoc = new ReturnedOrder({
+    const returnedOrder = new ReturnedOrder({
       orderId,
       user_id,
       product_id,
@@ -47,15 +50,16 @@ const createReturnedOrder = async ({
       returnedAt: new Date(),
     });
 
-    const savedDoc = await returnedDoc.save();
-    return savedDoc;
+    const savedOrder = await returnedOrder.save({ session });
 
+    return savedOrder;
   } catch (error) {
     throw error instanceof CustomError
       ? error
-      : new CustomError(error.message, 500);
+      : new CustomError(error.message || "Failed to create returned order", 500);
   }
 };
+
 
 const markAsInspected = async (req, res, next) => {
     try {
