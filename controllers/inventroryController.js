@@ -13,12 +13,13 @@ const createProduct = async (req, res, next) => {
       stock,
       isActive
     } = req.body;
-
+    // console.log(req.body)
+    // console.log(req.files.images)  
     if (!req.files || !req.files.images) {
       throw new CustomError("Product images are required", 400);
     }
 
-    const files = Array.isArray(req.files.images)
+    const files = Array.isArray(req.files.images) 
       ? req.files.images
       : [req.files.images];
 
@@ -46,7 +47,7 @@ const createProduct = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
-      data: newProduct
+      // data: newProduct
     });
   } catch (err) {
     console.error("Create Product Error:", err);
@@ -165,6 +166,69 @@ const updateProductsStock = async (orderedItems, session) => {
   }
 };
 
+const searchProductsByName = async (req, res, next) => {
+  try {
+    const { keyword = "", page = 1, limit = 10 } = req.query;
+
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
+    const skip = (pageNumber - 1) * pageSize;
+
+    if (!keyword.trim()) {
+      throw new CustomError("Search keyword is required", 400);
+    }
+
+    const matchStage = {
+      $match: {
+        product_name: {
+          $regex: keyword,
+          $options: "i", // case-insensitive
+        },
+      },
+    };
+
+    const facetStage = {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [
+          { $skip: skip },
+          { $limit: pageSize },
+          {
+            $project: {
+              _id: 1,
+              product_name: 1,
+              price: 1,
+              imageUrls: 1,
+              avg_rating: 1,
+              review_count: 1,
+            },
+          },
+        ],
+      },
+    };
+
+    const results = await Product.aggregate([matchStage, facetStage]);
+
+    const total = results[0].metadata[0]?.total || 0;
+    const products = results[0].data;
+
+    res.status(200).json({
+      success: true,
+      page: pageNumber,
+      totalPages: Math.ceil(total / pageSize),
+      totalResults: total,
+      resultsPerPage: pageSize,
+      products,
+    });
+  } catch (error) {
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError(error.message, 500)
+    );
+  }
+};
+
 
 
 
@@ -175,5 +239,6 @@ module.exports = {
   getProductById,
   updateProduct,
   deleteProduct,
-  updateProductsStock
+  updateProductsStock,
+  searchProductsByName,
 };

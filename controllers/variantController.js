@@ -4,17 +4,37 @@ const {s3UploadHandler,s3DeleteHandler,s3ReplaceHandler} = require("../helpers/s
 // CREATE
 const createVariant = async (req, res, next) => {
   try {
-    const { product_id, variant_attributes, price, stock } = req.body;
+    let { product_id, size, color, price, stock } = req.body;
 
-    if (!product_id || !variant_attributes || !price) {
+    if (!product_id || !color || !size || !price) {
       return res.status(400).json({
         success: false,
-        message: "product_id, variant_attributes, and price are required",
+        message: "product_id, size, color and price are required",
+      });
+    }
+
+    size = size.toUpperCase();
+    color = color.toUpperCase();
+
+    // 🔍 Check if a variant with same product_id, size, and color already exists
+    const existingVariant = await Variant.findOne({
+      product_id,
+      size,
+      color,
+    });
+
+    if (existingVariant) {
+      return res.status(409).json({
+        success: false,
+        message: `Variant with size "${size}" and color "${color}" already exists for this product.`,
       });
     }
 
     if (!req.files || !req.files.images) {
-      return res.status(400).json({ success: false, message: "Images are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Images are required",
+      });
     }
 
     const images = Array.isArray(req.files.images)
@@ -30,7 +50,8 @@ const createVariant = async (req, res, next) => {
 
     const newVariant = new Variant({
       product_id,
-      variant_attributes,
+      size,
+      color,
       price,
       stock,
       imageUrls,
@@ -45,9 +66,10 @@ const createVariant = async (req, res, next) => {
       data: newVariant,
     });
   } catch (err) {
-    next(err);
+    next(err instanceof CustomError ? err : new CustomError(err.message, 500));
   }
 };
+
 
 // READ ALL
 const getAllVariants = async (req, res, next) => {
@@ -80,7 +102,7 @@ const updateVariant = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Variant not found" });
     }
 
-    const { variant_attributes, price, stock, isActive } = req.body;
+    const { color, size, price, stock, isActive } = req.body;
 
     // Handle image replacement if files provided
     if (req.files && req.files.images) {
@@ -105,7 +127,8 @@ const updateVariant = async (req, res, next) => {
     }
 
     // Update fields
-    if (variant_attributes) existingVariant.variant_attributes = variant_attributes;
+    if (color) existingVariant.color = color;
+    if (size) existingVariant.size = size;
     if (price) existingVariant.price = price;
     if (stock) existingVariant.stock = stock;
     if (typeof isActive === "boolean") existingVariant.isActive = isActive;
@@ -176,3 +199,4 @@ module.exports = {
   deleteVariant,
   updateVariantsStock
 };
+

@@ -39,7 +39,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 // app.use(mongoSanitize()); //Protects MongoDB from malicious query injections.
-app.use(fileUpload());
+// app.use(fileUpload());
 
 app.get("/", (req, res) => {
     res.send("Server is running");
@@ -53,7 +53,7 @@ app.use("/api/review",ReviewRoutes);
 // Global error handling middleware
 app.use(errorHandler);
 
-app.use(function cb(req, res) {
+app.use(function cb(req, res) { 
   res.status(404).json({
     status: "failure",
     message: " route not found",

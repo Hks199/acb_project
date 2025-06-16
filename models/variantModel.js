@@ -8,13 +8,20 @@ const variantSchema = new mongoose.Schema(
       required: true,
     },
 
-    variant_attributes: {
-      type: Map,
-      of: String,
-      required: true,
-      // Example: { size: "M", color: "Red" }
+    // variant_attributes: {
+    //   type: Map,
+    //   of: String,
+    //   required: true,
+    //   // Example: { size: "M", color: "Red" }
+    // },
+    size : {
+      type : String,
+      required : true
     },
-
+    color : {
+       type : String,
+       required : true
+    },
     price: {
       type: Number,
       required: true,
