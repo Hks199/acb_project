@@ -1,0 +1,51 @@
+name: Node.js CI
+on:
+  push:
+    branches: [ "main" ]
+
+
+jobs:
+  build:
+
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: ["22.x"]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+    
+    - name: Create .env file
+      run: |
+          echo "PORT=${{ secrets.PORT }}" > .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "MONGODB_URL=${{ secrets.MONGODB_URL }}" >> .env
+          echo "FIRST_PROJECT_LINK=${{ secrets.FIRST_PROJECT_LINK }}" >> .env
+          echo "SECOND_PROJECT_LINK=${{ secrets.SECOND_PROJECT_LINK }}" >> .env
+          echo "EMAIL_USER=${{ secrets.EMAIL_USER }}" >> .env
+          echo "EMAIL_PASS=${{ secrets.EMAIL_PASS }}" >> .env
+          echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}" >> .env
+          echo "AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }}" >> .env
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
+          echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> .env
+          echo "RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}" >> .env
+          echo "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" >> .env
+          echo "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >> .env
+          # Add any other environment variables your app needs
+          cat .env
+
+    - name: Add NVM path to environment
+      run: echo "PATH=$PATH:/home/ubuntu/.nvm/versions/node/v22.14.0/bin" >> $GITHUB_ENV
+  
+    
+    - name: Start or reload PM2
+      run: |
+         pm2 start ./server.js --name yoga_wp ||  pm2 reload yoga_wp
