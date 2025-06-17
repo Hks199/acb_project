@@ -1,12 +1,11 @@
 name: Node.js CI
 on:
   push:
-    branches: [ "main" ]
-
+    branches: [ "main" ] 
+    
 
 jobs:
-  build:
-
+  build:  
     runs-on: self-hosted
 
     strategy:
