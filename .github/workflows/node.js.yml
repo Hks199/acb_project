@@ -48,4 +48,4 @@ jobs:
     
     - name: Start or reload PM2
       run: |
-         pm2 start ./server.js --name yoga_wp ||  pm2 reload yoga_wp
+         pm2 start ./index.js --name acb_project ||  pm2 reload acb_project
