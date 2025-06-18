@@ -3,8 +3,7 @@ name: Node.js CI
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # allows manual trigger from GitHub UI
-  
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,9 +24,11 @@ jobs:
         cache: 'npm'
 
     - name: 📦 Install Dependencies
+      working-directory: ${{ github.workspace }}
       run: npm ci
 
     - name: 🛠️ Create .env file
+      working-directory: ${{ github.workspace }}
       run: |
         cat <<EOF > .env
         PORT=${{ secrets.PORT }}
@@ -48,21 +49,22 @@ jobs:
         echo ".env file created"
 
     - name: 📈 Export NVM path (if needed)
-      run: |
-        echo "PATH=$PATH:/home/ubuntu/.nvm/versions/node/v22.14.0/bin" >> $GITHUB_ENV
+      run: echo "PATH=$PATH:/home/ubuntu/.nvm/versions/node/v22.14.0/bin" >> $GITHUB_ENV
 
     - name: 🚀 Start or reload PM2 app
+      working-directory: ${{ github.workspace }}
       run: |
-         if pm2 list | grep -q acb_project; then
-           echo "Reloading existing PM2 process..."
-           pm2 reload acb_project
-         else
-           echo "Starting new PM2 process..."
-           pm2 start ./index.js --name acb_project
-         fi
+        if pm2 list | grep -q acb_project; then
+          echo "Reloading existing PM2 process..."
+          pm2 reload acb_project
+        else
+          echo "Starting new PM2 process..."
+          pm2 start index.js --name acb_project
+        fi
 
-    - name: 💾 Save PM2 process list (optional)
+    - name: 💾 Save PM2 process list
       run: pm2 save
+
 
 
 
