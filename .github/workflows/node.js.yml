@@ -53,14 +53,13 @@ jobs:
 
     - name: 🚀 Start or reload PM2 app
       run: |
-        pm2 describe acb_project > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-          echo "Reloading existing PM2 app..."
-          pm2 reload acb_project
-        else
-          echo "Starting new PM2 app..."
-          pm2 start ./index.js --name acb_project
-        fi
+         if pm2 list | grep -q acb_project; then
+           echo "Reloading existing PM2 process..."
+           pm2 reload acb_project
+         else
+           echo "Starting new PM2 process..."
+           pm2 start ./index.js --name acb_project
+         fi
 
     - name: 💾 Save PM2 process list (optional)
       run: pm2 save
