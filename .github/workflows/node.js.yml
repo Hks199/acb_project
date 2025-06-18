@@ -59,7 +59,7 @@ jobs:
           pm2 reload acb_project
         else
           echo "Starting new PM2 app..."
-          pm2 start index.js --name acb_project
+          pm2 start ./index.js --name acb_project
         fi
 
     - name: 💾 Save PM2 process list (optional)
