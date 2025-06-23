@@ -76,54 +76,6 @@ const getProductById = async (req, res, next) => {
   }
 };
 
-// UPDATE
-const updateProduct = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-
-    const product = await Product.findById(id);
-    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
-
-    if (req.files && req.files.images) {
-      const newImages = Array.isArray(req.files.images)
-        ? req.files.images
-        : [req.files.images];
-
-      if (newImages.length !== product.image_keys.length) {
-        return res.status(400).json({
-          success: false,
-          message: `Image count mismatch. Expected ${product.image_keys.length} images.`,
-        });
-      }
-
-      const updatedUrls = [];
-
-      for (let i = 0; i < newImages.length; i++) {
-        const image = newImages[i];
-        const fileKey = product.image_keys[i];
-
-        const { publicUrl } = await s3ReplaceHandler(image, fileKey);
-        updatedUrls.push(publicUrl);
-      }
-
-      updateData.imageUrls = updatedUrls;
-    }
-
-    const updatedProduct = await Product.findByIdAndUpdate(id, updateData, { new: true });
-
-    res.status(200).json({
-      success: true,
-      message: "Product updated successfully",
-      data: updatedProduct,
-    });
-
-  } catch (err) {
-    console.error("Update Product Error:", err);
-    next(err);
-  }
-};
-
 // DELETE
 const deleteProduct = async (req, res, next) => {
   try {
@@ -148,6 +100,74 @@ const deleteProduct = async (req, res, next) => {
     next(err);
   }
 };
+
+const updateProduct = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    // Find product and validate existence
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
+
+    // Handle image updates if provided
+    if (req.files && req.files.images) {
+      const newImages = Array.isArray(req.files.images)
+        ? req.files.images
+        : [req.files.images];
+
+      // More flexible validation (optional)
+      if (newImages.length > product.imageKeys.length) {
+        return res.status(400).json({
+          success: false,
+          message: `Too many images. Maximum ${product.imageKeys.length} allowed.`,
+        });
+      }
+
+      const updatedUrls = [...product.imageUrls]; // Copy existing URLs
+
+      try {
+        for (let i = 0; i < newImages.length; i++) {
+          const image = newImages[i];
+          const fileKey = product.imageKeys[i];
+
+          const { publicUrl } = await s3ReplaceHandler(image, fileKey);
+          updatedUrls[i] = publicUrl; // Update specific index
+        }
+        updateData.imageUrls = updatedUrls;
+      } catch (s3Error) {
+        console.error("S3 Upload Error:", s3Error);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to update product images",
+        });
+      }
+    }
+
+    // Update product data
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id, 
+      updateData, 
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Product updated successfully",
+      data: updatedProduct,
+    });
+
+  } catch (err) {
+    console.error("Update Product Error:", err);
+    next(err);
+  }
+};
+
 
 const updateProductsStock = async (orderedItems, session) => {
   for (const item of orderedItems) {
@@ -230,6 +250,50 @@ const searchProductsByName = async (req, res, next) => {
 };
 
 
+const getProductsSortedByReviews = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10 } = req.body;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const products = await Product.aggregate([
+      {
+        $sort: { review_count: -1 } // Sort by review_count in descending order
+      },
+      {
+        $skip: skip
+      },
+      {
+        $limit: parseInt(limit)
+      },
+      {
+        $project: {
+          _id: 1,
+          product_name: 1,
+          price: 1,
+          stock: 1,
+          imageUrls: 1,
+          review_count: 1,
+          avg_rating: 1,
+          isActive: 1,
+          category_id: 1,
+          vendor_id: 1
+        }
+      }
+    ]);
+
+    const totalCount = await Product.countDocuments();
+
+    res.status(200).json({
+      success: true,
+      totalProducts: totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: parseInt(page),
+      products
+    });
+  } catch (error) {
+    next(error instanceof CustomError ? error : new CustomError(error.message, 500));
+  }
+};
 
 
 
@@ -241,4 +305,6 @@ module.exports = {
   deleteProduct,
   updateProductsStock,
   searchProductsByName,
+  getProductsSortedByReviews
+  
 };

@@ -12,7 +12,7 @@ const app = express();
 
 const { FIRST_PROJECT_LINK, SECOND_PROJECT_LINK } = process.env;
 
-const allowedOrigins = [FIRST_PROJECT_LINK, SECOND_PROJECT_LINK, 'http://localhost:5174', 'http://localhost:3000'];
+const allowedOrigins = [FIRST_PROJECT_LINK, SECOND_PROJECT_LINK, 'http://localhost:5174', 'http://localhost:5173'];
 
 const corsOptions = {
   origin: function (origin, callback) {
