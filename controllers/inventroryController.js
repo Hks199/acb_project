@@ -85,7 +85,7 @@ const deleteProduct = async (req, res, next) => {
     if (!product) return res.status(404).json({ success: false, message: "Product not found" });
 
     // Delete all images from S3
-    for (const key of product.image_keys) {
+    for (const key of product.imageKeys) {
       await s3DeleteHandler(key);
     }
 
