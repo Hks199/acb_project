@@ -7,7 +7,8 @@ const {
   getProductById,
   updateProduct,
   deleteProduct,
-  getProductsSortedByReviews
+  getProductsSortedByReviews,
+  searchProductsByName
   
 } = require("../controllers/inventroryController");
 
@@ -20,5 +21,6 @@ router.get("/getProductById/:id", getProductById);
 router.patch("/updateProduct/:id", updateProduct);
 router.delete("/deleteProduct/:id", deleteProduct);
 router.post("/getProduct-sortedbyReview",getProductsSortedByReviews)
+router.post("/searchProductsByName",searchProductsByName)
 
 module.exports = router;

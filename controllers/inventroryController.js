@@ -188,7 +188,7 @@ const updateProductsStock = async (orderedItems, session) => {
 
 const searchProductsByName = async (req, res, next) => {
   try {
-    const { keyword = "", page = 1, limit = 10 } = req.query;
+    const { keyword = "", page = 1, limit = 10 } = req.body;
 
     const pageNumber = parseInt(page);
     const pageSize = parseInt(limit);
