@@ -1,4 +1,5 @@
 const Variant = require("../models/variantModel.js");
+const mongoose = require("mongoose");
 const { CustomError } = require("../errors/CustomErrorHandler.js"); // adjust path as per your structure
 const {s3UploadHandler,s3DeleteHandler,s3ReplaceHandler} = require("../helpers/s3BucketUploadHandler");
 // CREATE
@@ -72,14 +73,27 @@ const createVariant = async (req, res, next) => {
 
 
 // READ ALL
-const getAllVariants = async (req, res, next) => {
+const getAllVariantsByProduct_id = async (req, res, next) => {
   try {
-    const variants = await Variant.find().populate("product_id");
-    res.status(200).json({ success: true, variants });
+    const  product_id  = req.params.id;
+
+    // Validate if the product_id is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(product_id)) {
+      return next(new CustomError("Invalid product_id", 400));
+    }
+
+    const variants = await Variant.find({ product_id });
+
+    res.status(200).json({
+      success: true,
+      message: "Variants fetched successfully",
+      variants,
+    });
   } catch (error) {
     next(new CustomError("FetchVariantError", error.message, 500));
   }
 };
+
 
 // READ ONE
 const getVariantById = async (req, res, next) => {
@@ -193,7 +207,7 @@ const updateVariantsStock = async (orderedItems, session) => {
 
 module.exports = {
   createVariant,
-  getAllVariants,
+  getAllVariantsByProduct_id,
   getVariantById,
   updateVariant,
   deleteVariant,
