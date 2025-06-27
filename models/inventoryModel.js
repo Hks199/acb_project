@@ -44,16 +44,7 @@ const productSchema = new mongoose.Schema(
         message: "All image URLs must be strings.",
       },
     },
-
-    imageKeys: {
-      type: [String], // S3 object keys for deletion
-      required: true,
-      validate: {
-        validator: arr => arr.every(key => typeof key === "string"),
-        message: "All image keys must be strings.",
-      },
-    },
-
+    
     isActive: {
       type: Boolean,
       default: true,

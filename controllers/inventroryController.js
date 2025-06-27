@@ -11,35 +11,31 @@ const createProduct = async (req, res, next) => {
       description,
       price,
       stock,
-      isActive
+      isActive,
+      imageUrls
     } = req.body;
-    // console.log(req.body)
-    // console.log(req.files.images)  
-    if (!req.files || !req.files.images) {
-      throw new CustomError("Product images are required", 400);
+
+    // Basic validation
+    if (!category_id || !vendor_id || !product_name || !description || !price || !imageUrls) {
+      throw new CustomError("Missing required fields", 400);
     }
 
-    const files = Array.isArray(req.files.images) 
-      ? req.files.images
-      : [req.files.images];
+    // Parse description only if it's a string
+    const parsedDescription =
+      typeof description === "string" ? JSON.parse(description) : description;
 
-    const uploadedImages = await Promise.all(
-      files.map(file => s3UploadHandler(file, "product-images"))
-    );
-
-    const imageUrls = uploadedImages.map(img => img.publicUrl);
-    const imageKeys = uploadedImages.map(img => img.fileKey);
+    // Ensure imageUrls and imageKeys are arrays
+    const parsedImageUrls = Array.isArray(imageUrls) ? imageUrls : JSON.parse(imageUrls);
 
     const newProduct = new Product({
       category_id,
       vendor_id,
       product_name,
-      description: JSON.parse(description), // parse if sent as string
+      description: parsedDescription,
       price,
       stock,
-      imageUrls,
-      imageKeys,
-      isActive
+      isActive,
+      imageUrls: parsedImageUrls
     });
 
     await newProduct.save();
@@ -47,13 +43,14 @@ const createProduct = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
-      // data: newProduct
+      // data: newProduct,
     });
   } catch (err) {
     console.error("Create Product Error:", err);
     next(err instanceof CustomError ? err : new CustomError(err.message, 500));
   }
 };
+
 
 // READ ALL
 const getAllProducts = async (req, res, next) => {
@@ -81,19 +78,17 @@ const deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const product = await Product.findById(id);
-    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
+    const deletedProduct = await Product.findByIdAndDelete(id);
 
-    // Delete all images from S3
-    for (const key of product.imageKeys) {
-      await s3DeleteHandler(key);
+    if (!deletedProduct) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
     }
-
-    await Product.findByIdAndDelete(id);
-
     res.status(200).json({
       success: true,
-      message: "Product and its images deleted successfully",
+      message: "Product deleted successfully",
     });
 
   } catch (err) {
@@ -106,7 +101,7 @@ const updateProduct = async (req, res, next) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    // Find product and validate existence
+    // Check if product exists
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ 
@@ -115,46 +110,16 @@ const updateProduct = async (req, res, next) => {
       });
     }
 
-    // Handle image updates if provided
-    if (req.files && req.files.images) {
-      const newImages = Array.isArray(req.files.images)
-        ? req.files.images
-        : [req.files.images];
-
-      // More flexible validation (optional)
-      if (newImages.length > product.imageKeys.length) {
-        return res.status(400).json({
-          success: false,
-          message: `Too many images. Maximum ${product.imageKeys.length} allowed.`,
-        });
-      }
-
-      const updatedUrls = [...product.imageUrls]; // Copy existing URLs
-
-      try {
-        for (let i = 0; i < newImages.length; i++) {
-          const image = newImages[i];
-          const fileKey = product.imageKeys[i];
-
-          const { publicUrl } = await s3ReplaceHandler(image, fileKey);
-          updatedUrls[i] = publicUrl; // Update specific index
-        }
-        updateData.imageUrls = updatedUrls;
-      } catch (s3Error) {
-        console.error("S3 Upload Error:", s3Error);
-        return res.status(500).json({
-          success: false,
-          message: "Failed to update product images",
-        });
-      }
+    // Parse description if it's a stringified JSON
+    if (updateData.description && typeof updateData.description === "string") {
+      updateData.description = JSON.parse(updateData.description);
     }
 
-    // Update product data
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id, 
-      updateData, 
-      { new: true }
-    );
+    // Update product
+    const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     res.status(200).json({
       success: true,
