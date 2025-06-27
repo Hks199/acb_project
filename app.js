@@ -5,7 +5,8 @@ dotenv.config();
 const cors = require("cors");
 const helmet = require("helmet");
 // const mongoSanitize = require("express-mongo-sanitize");
-const fileUpload = require("express-fileupload");
+
+const fileUpload = require('express-fileupload');
 const {errorHandler} = require("./errors/CustomErrorHandler");
 
 const app = express();
@@ -16,7 +17,7 @@ const allowedOrigins = [FIRST_PROJECT_LINK, SECOND_PROJECT_LINK, 'http://localho
 
 const corsOptions = {
   origin: function (origin, callback) {
-
+    
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -32,7 +33,9 @@ const UserRoutes = require("./routes/userRoutes");
 const CategoryRoutes = require("./routes/categoryRouter")
 const InventoryRoutes = require("./routes/inventoryRouter")
 const variantRoutes = require("./routes/variantRoutes");
-const ReviewRoutes = require("./routes/reviewRoutes")
+const ReviewRoutes = require("./routes/reviewRoutes");
+const listOfImagesRouters = require("./routes/listOfImagesRouter");
+app.use(fileUpload());
 
 app.use(helmet()); // Mitigates XSS attacks and ClickJacking
 app.use(cors(corsOptions));
@@ -50,6 +53,7 @@ app.use("/api/category",CategoryRoutes);
 app.use("/api/inventory",InventoryRoutes);
 app.use("/api/variants", variantRoutes);
 app.use("/api/review",ReviewRoutes);
+app.use("/api/image",listOfImagesRouters);
 // Global error handling middleware
 app.use(errorHandler);
 
