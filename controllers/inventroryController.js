@@ -262,6 +262,41 @@ const getProductsSortedByReviews = async (req, res, next) => {
 
 
 
+const getProductsByCategoryId = async (req, res, next) => {
+  try {
+    const { category_id } = req.body;
+
+    const page = parseInt(req.body.page) || 1;       // Default page: 1
+    const limit = parseInt(req.body.limit) || 10;    // Default limit: 10
+    const skip = (page - 1) * limit;
+
+    const [products, total] = await Promise.all([
+      Product.find({ category_id })
+        .skip(skip)
+        .limit(limit),
+      Product.countDocuments({ category_id })
+    ]);
+
+    if (!products || products.length === 0) {
+      return next(new CustomError("NotFound", "No products found for this category", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      count: products.length,
+      page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+      products,
+    });
+  } catch (error) {
+    next(new CustomError("FetchProductError", error.message, 500));
+  }
+};
+
+
+
+
 module.exports = {
   createProduct,
   getAllProducts,
@@ -270,6 +305,7 @@ module.exports = {
   deleteProduct,
   updateProductsStock,
   searchProductsByName,
-  getProductsSortedByReviews
+  getProductsSortedByReviews,
+  getProductsByCategoryId
   
 };
