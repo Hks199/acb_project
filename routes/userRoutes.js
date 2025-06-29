@@ -11,7 +11,8 @@ const {
     logoutUser,
     getUserById,
     getUserStatistics,
-    getAllUsers
+    getAllUsers,
+    getUserByAuthToken
  } = require("../controllers/userController");
 
 router.post("/register", registerUser); 
@@ -24,7 +25,7 @@ router.post("/getuser-byid/:id",getUserById);
 router.patch("/update-user/:id",updateUser);
 router.post("/getuser-statistics",getUserStatistics)
 router.get("/getAllUsers", getAllUsers); // ?role=User or Admin
-
+router.get("/getUserByAuthToken",getUserByAuthToken);
 
 
 module.exports = router

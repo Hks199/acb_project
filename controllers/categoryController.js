@@ -3,9 +3,9 @@ const Category = require("../models/categoryModel");
 // Create category
 createCategory = async (req, res) => {
   try {
-    const { category } = req.body;
+    const { category,imageUrls } = req.body;
 
-    if (!category) {
+    if (!category || !imageUrls) {
       return res.status(400).json({ message: "Category is required." });
     }
 
@@ -14,7 +14,7 @@ createCategory = async (req, res) => {
       return res.status(409).json({ message: "Category already exists." });
     }
 
-    const newCategory = await Category.create({ category });
+    const newCategory = await Category.create({ category,imageUrls });
     res.status(201).json(newCategory);
   } catch (error) {
     res.status(500).json({ message: "Error creating category", error });

@@ -371,6 +371,39 @@ const getUserStatistics = async (req, res, next) => {
   }
 };
 
+const getUserByAuthToken = async (req, res, next) => {
+  try {
+    const userId = req.user?._id; // From auth middleware
+
+    if (!userId) {
+      return next(new CustomError("Unauthorized", "User ID not found in request", 401));
+    }
+
+    const user = await User.findById(userId).select("-password");
+
+    if (!user) {
+      return next(new CustomError("UserNotFound", "User not found", 404));
+    }
+
+    const userData = {
+      firstName: user.first_name,
+      lastName: user.last_name,
+      role: user.role,
+      email: user.email,
+      mobile_number: user.mobile_number,
+      gender: user.gender,
+      landmark: user.landmark,
+      state: user.state,
+      city: user.city,
+      country: user.country,
+    };
+
+    res.status(200).json({ status: "success", userData });
+  } catch (error) {
+    next(new CustomError("DatabaseError", "Error retrieving user", 500));
+  }
+};
+
 
 
 module.exports = {
@@ -384,5 +417,6 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
-  getUserStatistics
+  getUserStatistics,
+  getUserByAuthToken
 };
