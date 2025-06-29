@@ -42,21 +42,20 @@ const getAllVariantSets = async (req, res, next) => {
 };
 
 
-const getVariantSetByProductId = async (req, res, next) => {
+async function getVariantSetByProductId(productId) {
   try {
-    const { productId } = req.params;
-
     const variantSet = await ProductVariantSet.findOne({ productId }).populate("productId");
 
     if (!variantSet) {
-      return res.status(404).json({ success: false, message: "Variant set not found" });
+      return null; // Optional: return null instead of undefined
     }
 
-    res.status(200).json({ success: true, data: variantSet });
+    return variantSet;
   } catch (error) {
-    next(error);
+    throw new Error(error.message || "Failed to fetch variant set");
   }
-};
+}
+
 
 const updateVariantSet = async (req, res, next) => {
   try {

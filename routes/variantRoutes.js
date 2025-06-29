@@ -15,9 +15,6 @@ router.post("/create-variant", createVariantSet);
 // 🔹 Get all variant sets
 router.get("/getAllVariant", getAllVariantSets);
 
-// 🔹 Get variant set by product ID
-router.get("/:productId", getVariantSetByProductId);
-
 // 🔹 Update variant set by ID
 router.put("/:id", updateVariantSet);
 

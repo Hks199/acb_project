@@ -1,6 +1,7 @@
 const Product = require("../models/inventoryModel");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
-const {s3UploadHandler,s3DeleteHandler,s3ReplaceHandler} = require("../helpers/s3BucketUploadHandler");
+const {getVariantSetByProductId} = require("./variantController.js");
+const mongoose = require("mongoose");
 // CREATE
 const createProduct = async (req, res, next) => {
   try {
@@ -65,13 +66,31 @@ const getAllProducts = async (req, res, next) => {
 // READ ONE
 const getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return next(new CustomError("NotFound", "Product not found", 404));
-    res.status(200).json({ success: true, product });
+    const productId = req.params.id;
+
+    // Validate ObjectId if needed
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return next(new CustomError("InvalidId", "Invalid product ID", 400));
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return next(new CustomError("NotFound", "Product not found", 404));
+    }
+
+    const variantSet = await getVariantSetByProductId(product._id);
+
+    res.status(200).json({
+      success: true,
+      product,
+      variant: variantSet, // or rename to `variantSet` for clarity
+    });
+
   } catch (error) {
     next(new CustomError("FetchProductError", error.message, 500));
   }
 };
+
 
 // DELETE
 const deleteProduct = async (req, res, next) => {
