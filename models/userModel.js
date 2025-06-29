@@ -13,7 +13,6 @@ const userSchema = new mongoose.Schema(
     },
     last_name: {
       type: String,
-      required: true,
       trim: true,
     },
     email: {
@@ -39,7 +38,6 @@ const userSchema = new mongoose.Schema(
     // },
     gender: {
       type: String,
-      required: true,
       enum: ["Male", "Female", "Other"],
     },
     landmark: {
@@ -48,15 +46,12 @@ const userSchema = new mongoose.Schema(
       },
       state: {
         type: String,
-        required: true,
       },
       city: {
         type: String,
-        required: true,
       },
     country: {
       type: String,
-      required: true,
       trim: true,
     },
     password: {

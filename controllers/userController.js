@@ -7,7 +7,7 @@ const jwt = require("jsonwebtoken");
 // **Register User & Send OTP**
 const registerUser = async (req, res, next) => {
   try {
-    const { first_name, last_name,role, email, mobile_number, password,gender,landmark,state, city, country } = req.body;
+    const { first_name,role, email, mobile_number, password,} = req.body;
 
     // **Check if Password is Strong**
     if (!password || password.length < 8) {
@@ -24,24 +24,17 @@ const registerUser = async (req, res, next) => {
     // **Create New User (without OTP initially)**
     const user = new User({
       first_name,
-      last_name,
       email,
       mobile_number,
       password,
       role,
-      gender,
-      landmark,
-      state, 
-      city,
-      country,
     });
+    const otp = user.generateOtp();
 
-    // **Generate OTP & Set Expiration**
-    // const otp = user.generateOtp();
     await user.save();
 
-    // **Send OTP via Email**
-    // await sendOTP(otp, user.email, user.first_name);
+    // Send OTP via Email
+    await sendOTP(otp, user.email, user.first_name);
 
     //**Response**
     res.status(201).json({
