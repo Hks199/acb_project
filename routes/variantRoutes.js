@@ -10,10 +10,10 @@ const {
 } = require("../controllers/variantController");
 
 // 🔹 Create variant set
-router.post("/", createVariantSet);
+router.post("/create-variant", createVariantSet);
 
 // 🔹 Get all variant sets
-router.get("/", getAllVariantSets);
+router.get("/getAllVariant", getAllVariantSets);
 
 // 🔹 Get variant set by product ID
 router.get("/:productId", getVariantSetByProductId);
