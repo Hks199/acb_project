@@ -16,10 +16,10 @@ router.post("/create-variant", createVariantSet);
 router.get("/getAllVariant", getAllVariantSets);
 
 // 🔹 Update variant set by ID
-router.put("/:id", updateVariantSet);
+router.patch("/updateVariantSet/:id", updateVariantSet);
 
 // 🔹 Delete variant set by ID
-router.delete("/:id", deleteVariantSet);
+router.delete("/deleteVariantSet/:id", deleteVariantSet);
 
 module.exports = router;
 
