@@ -35,6 +35,7 @@ const InventoryRoutes = require("./routes/inventoryRouter")
 const variantRoutes = require("./routes/variantRoutes");
 const ReviewRoutes = require("./routes/reviewRoutes");
 const listOfImagesRouters = require("./routes/listOfImagesRouter");
+const OrderRoutes = require("./routes/orderRoutes");
 app.use(fileUpload());
 
 app.use(helmet()); // Mitigates XSS attacks and ClickJacking
@@ -54,6 +55,7 @@ app.use("/api/inventory",InventoryRoutes);
 app.use("/api/variants", variantRoutes);
 app.use("/api/review",ReviewRoutes);
 app.use("/api/image",listOfImagesRouters);
+app.use("/api/order",OrderRoutes);
 // Global error handling middleware
 app.use(errorHandler);
 

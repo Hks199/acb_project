@@ -99,30 +99,30 @@ const deleteVariantSet = async (req, res, next) => {
 };
 
 const updateVariantsStock = async (orderedItems, session) => {
+  let combination;
+  let updatedStock;
   for (const item of orderedItems) {
     const { product_id, variant_id, quantity } = item;
 
     const variantSet = await ProductVariantSet.findOne({ productId: product_id }).session(session);
-    if (!variantSet) {
-      throw new CustomError(`Variant set not found for product: ${product_id}`, 404);
+    if (variantSet) {
+     combination = variantSet.combinations.find(comb => comb._id.toString() === variant_id);
+     
+     if (combination) {
+       updatedStock = combination.stock - quantity;
+      }
+      
+      if (updatedStock < 0) {
+        throw new CustomError(`Insufficient stock for variant: ${variant_id}`, 400);
+      }
+      
+      combination.stock = updatedStock;
+      
+      // Inform Mongoose that nested array is modified
+      variantSet.markModified("combinations");
+      
+      await variantSet.save({ session });
     }
-
-    const combination = variantSet.combinations.find(comb => comb._id.toString() === variant_id);
-    if (!combination) {
-      throw new CustomError(`Variant combination not found: ${variant_id}`, 404);
-    }
-
-    const updatedStock = combination.stock - quantity;
-    if (updatedStock < 0) {
-      throw new CustomError(`Insufficient stock for variant: ${variant_id}`, 400);
-    }
-
-    combination.stock = updatedStock;
-
-    // Inform Mongoose that nested array is modified
-    variantSet.markModified("combinations");
-
-    await variantSet.save({ session });
   }
 };
 

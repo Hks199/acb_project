@@ -25,7 +25,7 @@ router.post("/getuser-byid/:id",getUserById);
 router.patch("/update-user/:id",updateUser);
 router.post("/getuser-statistics",getUserStatistics)
 router.get("/getAllUsers", getAllUsers); // ?role=User or Admin
-router.get("/getUserByAuthToken",getUserByAuthToken);
+router.get("/getUserByAuthToken",authMiddleware,getUserByAuthToken);
 
 
 module.exports = router
