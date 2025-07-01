@@ -11,10 +11,6 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    last_name: {
-      type: String,
-      trim: true,
-    },
     email: {
       type: String,
       required: true,
@@ -32,10 +28,6 @@ const userSchema = new mongoose.Schema(
       trim: true,
       match: [/^\d{10,15}$/, "Please enter a valid mobile number"],
     },
-    // date_of_birth: {
-    //   type: Date,
-    //   required: true,
-    // },
     gender: {
       type: String,
       enum: ["Male", "Female", "Other"],

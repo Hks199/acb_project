@@ -292,22 +292,40 @@ const getUserById = async (req, res, next) => {
 };
 
 // Update User
+
 const updateUser = async (req, res, next) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    }).select("-password");
+    const userId = req.user?._id || req.params.id; // Prefer auth ID, fallback to param
 
-    if (!user) {
+    const updateFields = {};
+    const allowedFields = ["first_name", "landmark", "gender", "state", "city", "mobile_number"];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateFields[field] = req.body[field];
+      }
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateFields,
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!updatedUser) {
       return next(new CustomError("UserNotFound", "User not found", 404));
     }
 
-    res.status(200).json({ message: "User updated successfully", user });
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      user: updatedUser,
+    });
   } catch (error) {
-    next(new CustomError("UpdateError", "Error updating user", 400));
+    next(new CustomError("UpdateError", error.message || "Error updating user", 400));
   }
 };
+
 
 // Delete User
 const deleteUser = async (req, res, next) => {
