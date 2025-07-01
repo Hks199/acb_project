@@ -5,7 +5,7 @@ const ProductVariantSet = require("../models/variantModel.js");
 
 const createVariantSet = async (req, res, next) => {
   try {
-    const { productId,varient_name, Size, Color, combinations } = req.body;
+    const { productId,varient_name, Size, Color, combinations,color_images} = req.body;
 
     if (!productId || !Array.isArray(combinations) || combinations.length === 0) {
       throw new CustomError("productId and combinations are required", 400);
@@ -17,6 +17,7 @@ const createVariantSet = async (req, res, next) => {
       Size,
       Color,
       combinations,
+      color_images
     });
 
     res.status(201).json({
@@ -30,17 +31,33 @@ const createVariantSet = async (req, res, next) => {
 };
 
 
+
 const getAllVariantSets = async (req, res, next) => {
   try {
-    const variantSets = await ProductVariantSet.find();
+    const page = parseInt(req.body.page) || 1;        // default page = 1
+    const limit = parseInt(req.body.limit) || 10;     // default limit = 10
+    const skip = (page - 1) * limit;
+
+    const [variantSets, total] = await Promise.all([
+      ProductVariantSet.find()
+        .skip(skip)
+        .limit(limit),
+      ProductVariantSet.countDocuments()
+    ]);
+
     res.status(200).json({
       success: true,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      count: variantSets.length,
       data: variantSets,
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 
 async function getVariantSetByProductId(productId) {

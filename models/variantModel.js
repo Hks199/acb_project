@@ -1,5 +1,7 @@
+
 const mongoose = require("mongoose");
 
+// Sub-schema for variant combinations
 const variantCombinationSchema = new mongoose.Schema({
   _id: {
     type: mongoose.Schema.Types.ObjectId,
@@ -8,31 +10,26 @@ const variantCombinationSchema = new mongoose.Schema({
   Size: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
   },
   Color: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
   },
   price: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
   },
   stock: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
   }
 });
 
-// Define color_images schema as array of key-value objects
-const colorImageSchema = new mongoose.Schema(
-  {},
-  { strict: false, _id: false }
-);
-
+// Main schema
 const variantModelSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -60,21 +57,13 @@ const variantModelSchema = new mongoose.Schema({
       message: "At least one variant combination is required"
     }
   },
-  color_images: {
-    type: [colorImageSchema],
-    default: [],
-    validate: {
-      validator: function (arr) {
-        return arr.every(obj =>
-          typeof obj === "object" &&
-          Object.values(obj).every(
-            urls => Array.isArray(urls) && urls.every(url => typeof url === "string")
-          )
-        );
-      },
-      message: "Each color image set must be an object with color as key and array of string URLs as value"
+  color_images: [
+    {
+      color: String,
+      images: [String]
     }
-  }
+  ]
+  
 }, { timestamps: true });
 
 module.exports = mongoose.model("ProductVariantSet", variantModelSchema);
