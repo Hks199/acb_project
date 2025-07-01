@@ -5,7 +5,7 @@ const ProductVariantSet = require("../models/variantModel.js");
 
 const createVariantSet = async (req, res, next) => {
   try {
-    const { productId, Size, Color, combinations } = req.body;
+    const { productId,varient_name, Size, Color, combinations } = req.body;
 
     if (!productId || !Array.isArray(combinations) || combinations.length === 0) {
       throw new CustomError("productId and combinations are required", 400);
@@ -13,6 +13,7 @@ const createVariantSet = async (req, res, next) => {
 
     const newSet = await ProductVariantSet.create({
       productId,
+      varient_name,
       Size,
       Color,
       combinations,

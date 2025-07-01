@@ -5,6 +5,11 @@ const variantCombinationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     default: () => new mongoose.Types.ObjectId(), // Automatically generate _id
   },
+  varient_name : {
+    type : String,
+    required : true,
+    trim : true
+  },
   Size: {
     type: String,
     required: true,
