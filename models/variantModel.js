@@ -3,12 +3,7 @@ const mongoose = require("mongoose");
 const variantCombinationSchema = new mongoose.Schema({
   _id: {
     type: mongoose.Schema.Types.ObjectId,
-    default: () => new mongoose.Types.ObjectId(), // Automatically generate _id
-  },
-  varient_name : {
-    type : String,
-    required : true,
-    trim : true
+    default: () => new mongoose.Types.ObjectId(), // Auto-generate _id
   },
   Size: {
     type: String,
@@ -32,18 +27,29 @@ const variantCombinationSchema = new mongoose.Schema({
   }
 });
 
+// Define color_images schema as array of key-value objects
+const colorImageSchema = new mongoose.Schema(
+  {},
+  { strict: false, _id: false }
+);
+
 const variantModelSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
     required: true
   },
+  varient_name: {
+    type: String,
+    required: true,
+    trim: true
+  },
   Size: {
-    type: [String], // All available sizes
+    type: [String],
     required: true
   },
   Color: {
-    type: [String], // All available colors
+    type: [String],
     required: true
   },
   combinations: {
@@ -53,71 +59,22 @@ const variantModelSchema = new mongoose.Schema({
       validator: arr => arr.length > 0,
       message: "At least one variant combination is required"
     }
+  },
+  color_images: {
+    type: [colorImageSchema],
+    default: [],
+    validate: {
+      validator: function (arr) {
+        return arr.every(obj =>
+          typeof obj === "object" &&
+          Object.values(obj).every(
+            urls => Array.isArray(urls) && urls.every(url => typeof url === "string")
+          )
+        );
+      },
+      message: "Each color image set must be an object with color as key and array of string URLs as value"
+    }
   }
 }, { timestamps: true });
 
 module.exports = mongoose.model("ProductVariantSet", variantModelSchema);
-
-
-// const variantSchema = new mongoose.Schema(
-//   {
-//     product_id: {
-//       type: mongoose.Schema.Types.ObjectId,
-//       ref: "Product",
-//       required: true,
-//     },
-
-//     // variant_attributes: {
-//     //   type: Map,
-//     //   of: String,
-//     //   required: true,
-//     //   // Example: { size: "M", color: "Red" }
-//     // },
-//     size : {
-//       type : String,
-//       required : true
-//     },
-//     color : {
-//        type : String,
-//        required : true
-//     },
-//     price: {
-//       type: Number,
-//       required: true,
-//     },
-
-//     stock: {
-//       type: Number,
-//       default: 0,
-//     },
-
-//     imageUrls: {
-//       type: [String],
-//       validate: {
-//         validator: function (arr) {
-//           return arr.every(url => typeof url === "string");
-//         },
-//         message: "All image URLs must be strings.",
-//       },
-//     },
-//     imageKeys: {
-//       type: [String], // S3 object keys for deletion
-//       required: true,
-//       validate: {
-//         validator: arr => arr.every(key => typeof key === "string"),
-//         message: "All image keys must be strings.",
-//       },
-//     },
-//     isActive: {
-//       type: Boolean,
-//       default: true,
-//     },
-//   },
-//   { timestamps: true }
-// );
-
-
-
-
-
-// module.exports = mongoose.model("Variant", variantSchema);
