@@ -7,6 +7,7 @@ const {
   getVariantSetByProductId,
   updateVariantSet,
   deleteVariantSet,
+  editVariantSetByProductId
 } = require("../controllers/variantController");
 
 // 🔹 Create variant set
@@ -20,6 +21,8 @@ router.patch("/updateVariantSet/:id", updateVariantSet);
 
 // 🔹 Delete variant set by ID
 router.delete("/deleteVariantSet/:id", deleteVariantSet);
+
+router.get("/edit-variant/:id",editVariantSetByProductId)
 
 module.exports = router;
 

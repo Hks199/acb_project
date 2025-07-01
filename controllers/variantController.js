@@ -57,6 +57,30 @@ async function getVariantSetByProductId(productId) {
   }
 }
 
+const editVariantSetByProductId = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const variantSet = await ProductVariantSet.findOne({ _id: id });
+
+    if (!variantSet) {
+      return res.status(404).json({
+        success: false,
+        message: "Variant set not found for this product",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: variantSet,
+    });
+
+  } catch (error) {
+    next(new CustomError("EditVariantSetError", error.message || "Failed to fetch variant set", 500));
+  }
+};
+
+
 
 const updateVariantSet = async (req, res, next) => {
   try {
@@ -133,7 +157,8 @@ module.exports = {
   getVariantSetByProductId,
   updateVariantSet,
   deleteVariantSet,
-  updateVariantsStock
+  updateVariantsStock,
+  editVariantSetByProductId
 };
 
 
