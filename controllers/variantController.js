@@ -32,7 +32,7 @@ const createVariantSet = async (req, res, next) => {
 
 const getAllVariantSets = async (req, res, next) => {
   try {
-    const variantSets = await ProductVariantSet.find().populate("productId");
+    const variantSets = await ProductVariantSet.find();
     res.status(200).json({
       success: true,
       data: variantSets,
