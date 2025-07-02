@@ -1,5 +1,6 @@
 const ProductReview = require("../models/ratingAndreviewModel");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
+const {updateRatingAndReview} = require("./inventroryController.js")
 
 // CREATE or ADD REVIEW for a Product
 const addReview = async (req, res, next) => {
@@ -30,7 +31,7 @@ const addReview = async (req, res, next) => {
         productReview.review_and_rating.push({ customerId, rating, review });
         await productReview.save();
       }
-  
+      await getAverageRating(productId);
       res.status(201).json({ success: true, Message : "Review Submited Successfully" });
     } catch (error) {
       next(new CustomError("AddReviewError", error.message, 400));
@@ -120,6 +121,32 @@ const deleteReview = async (req, res, next) => {
     });
   } catch (error) {
     next(new CustomError("DeleteReviewError", error.message, 500));
+  }
+};
+
+async function getAverageRating(productId){
+  try {
+    const productReview = await ProductReview.findOne({ productId });
+
+    if (!productReview || productReview.review_and_rating.length === 0) {
+      return res.status(200).json({
+        success: true,
+        averageRating: 0,
+        totalRatings: 0,
+        message: "No reviews yet for this product",
+      });
+    }
+
+    const totalRatings = productReview.review_and_rating.length;
+    const sumOfRatings = productReview.review_and_rating.reduce(
+      (acc, review) => acc + review.rating,
+      0
+    );
+
+    const averageRating = Number((sumOfRatings / totalRatings).toFixed(1));
+    await updateRatingAndReview(productId,averageRating,totalRatings);
+  } catch (error) {
+    next(new CustomError("AverageRatingError", error.message, 500));
   }
 };
 

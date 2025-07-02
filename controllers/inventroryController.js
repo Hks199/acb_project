@@ -314,6 +314,27 @@ const getProductsByCategoryId = async (req, res, next) => {
 };
 
 
+async function updateRatingAndReview(productId, averageRating, totalRatings) {
+  try {
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      {
+        avg_rating: averageRating,
+        review_count: totalRatings
+      },
+      { new: true }
+    );
+
+    if (!updatedProduct) {
+      throw new Error("Product not found to update rating and review");
+    }
+  } catch (error) {
+    console.error("Rating update failed:", error.message);
+    throw new Error("Failed to update product rating and review count");
+  }
+}
+
+
 
 
 module.exports = {
@@ -325,6 +346,6 @@ module.exports = {
   updateProductsStock,
   searchProductsByName,
   getProductsSortedByReviews,
-  getProductsByCategoryId
-  
+  getProductsByCategoryId,
+  updateRatingAndReview
 };
