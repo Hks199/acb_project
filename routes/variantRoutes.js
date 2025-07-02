@@ -14,7 +14,7 @@ const {
 router.post("/create-variant", createVariantSet);
 
 // 🔹 Get all variant sets
-router.get("/getAllVariant", getAllVariantSets);
+router.post("/getAllVariant", getAllVariantSets);
 
 // 🔹 Update variant set by ID
 router.patch("/updateVariantSet/:id", updateVariantSet);
