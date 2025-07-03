@@ -38,6 +38,7 @@ const listOfImagesRouters = require("./routes/listOfImagesRouter");
 const OrderRoutes = require("./routes/orderRoutes");
 const vendorRegistrationrouters = require("./routes/vendorRegistrationRoutes");
 const addToCart = require("./routes/cartRoutes");
+const contactForm = require("./routes/contactFormRouter");
 app.use(fileUpload());
 
 app.use(helmet()); // Mitigates XSS attacks and ClickJacking
@@ -60,6 +61,7 @@ app.use("/api/image",listOfImagesRouters);
 app.use("/api/order",OrderRoutes);
 app.use("/api/vendor",vendorRegistrationrouters);
 app.use("/api/cart",addToCart);
+app.use("/api/contact",contactForm);
 // Global error handling middleware
 app.use(errorHandler);
 
