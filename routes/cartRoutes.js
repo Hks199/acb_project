@@ -6,15 +6,16 @@ const {
   updateCartItem,
   removeCartItem,
   clearCart,
+  calculateCartTotalAmount
 } = require("../controllers/cartController");
 
 // No auth middleware used
 router.post("/addToCart", addToCart);
-router.get("/getCart", getCart);
+router.get("/getCartbyId/:user_id", getCart);
 router.patch("/updateCartItem", updateCartItem);
 router.delete("/removeCartItem", removeCartItem);
 router.delete("/clearCart", clearCart);
-
+router.post("/calculateCartTotalAmount/:userId",calculateCartTotalAmount);
 module.exports = router;
 
 // POST /cart/add

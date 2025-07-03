@@ -1,5 +1,9 @@
 const Cart = require("../models/cartModel");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
+const mongoose = require("mongoose");
+const Product = require("../models/inventoryModel.js");
+const ProductVariantSet = require("../models/variantModel.js");
+
 
 const addToCart = async (req, res, next) => {
   try {
@@ -32,26 +36,78 @@ const addToCart = async (req, res, next) => {
       await cart.save();
     }
 
-    res.status(200).json({ success: true, cart });
+    res.status(200).json({ success: true,message:"submited successfully"});
   } catch (error) {
     next(new CustomError("AddToCartError", error.message, 500));
   }
 };
 
+
+
 const getCart = async (req, res, next) => {
+  const session = await mongoose.startSession();
+
   try {
-    const { user_id } = req.query;
+    session.startTransaction();
 
-    if (!user_id) return next(new CustomError("BadRequest", "user_id is required", 400));
+    const { user_id } = req.params;
+    if (!user_id) {
+      await session.abortTransaction();
+      return next(new CustomError("BadRequest", "user_id is required", 400));
+    }
 
-    const cart = await Cart.findOne({ user_id })
-      .populate("items.product_id", "product_name price imageUrls")
-      .populate("items.variant_id", "variant_attributes price");
+    const cart = await Cart.findOne({ user_id }).lean().session(session);
+    if (!cart || cart.items.length === 0) {
+      await session.abortTransaction();
+      return next(new CustomError("NotFound", "Cart is empty", 404));
+    }
 
-    if (!cart) return next(new CustomError("NotFound", "Cart is empty", 404));
+    const detailedItems = await Promise.all(
+      cart.items.map(async (item) => {
+        const product = await Product.findById(item.product_id)
+          .select("product_name price imageUrls")
+          .session(session);
 
-    res.status(200).json({ success: true, cart });
+        const variantSet = await ProductVariantSet.findOne({
+          productId: item.product_id,
+          "combinations._id": new mongoose.Types.ObjectId(item.variant_id),
+        }).session(session);
+
+        let variantDetails = null;
+
+        if (variantSet) {
+          variantDetails = variantSet.combinations.find(
+            (comb) => comb._id.toString() === item.variant_id.toString()
+          );
+        }
+
+        return {
+          product: {
+            _id: product?._id,
+            name: product?.product_name,
+            image: product?.imageUrls?.[0],
+          },
+          quantity: item.quantity,
+          variant: variantDetails || null,
+          fallback_price: product?.price || 0,
+        };
+      })
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      success: true,
+      cart: {
+        _id: cart._id,
+        user_id: cart.user_id,
+        items: detailedItems,
+      },
+    });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     next(new CustomError("GetCartError", error.message, 500));
   }
 };
@@ -60,55 +116,90 @@ const updateCartItem = async (req, res, next) => {
   try {
     const { user_id, product_id, variant_id, quantity } = req.body;
 
-    if (!user_id || !product_id || quantity < 1) {
+    // Basic validations
+    if (!user_id || !product_id || quantity == null || quantity < 1) {
       return next(new CustomError("BadRequest", "Missing or invalid fields", 400));
     }
 
-    const cart = await Cart.findOne({ user_id });
+    // Ensure ObjectId format
+    const userIdObj = new mongoose.Types.ObjectId(user_id);
+    const productIdObj = new mongoose.Types.ObjectId(product_id);
+    const variantIdObj = variant_id ? new mongoose.Types.ObjectId(variant_id) : null;
+
+    const cart = await Cart.findOne({ user_id: userIdObj });
     if (!cart) return next(new CustomError("NotFound", "Cart not found", 404));
 
-    const item = cart.items.find(
-      (item) =>
-        item.product_id.toString() === product_id &&
-        (variant_id ? item.variant_id?.toString() === variant_id : !item.variant_id)
-    );
+    // Find item by product & variant (if any)
+    const item = cart.items.find((item) => {
+      const isSameProduct = item.product_id.toString() === productIdObj.toString();
+      const isSameVariant = variantIdObj
+        ? item.variant_id?.toString() === variantIdObj.toString()
+        : !item.variant_id;
+      return isSameProduct && isSameVariant;
+    });
 
-    if (!item) return next(new CustomError("NotFound", "Item not in cart", 404));
+    if (!item) {
+      return next(new CustomError("NotFound", "Item not found in cart", 404));
+    }
 
+    // Update quantity
     item.quantity = quantity;
     await cart.save();
 
-    res.status(200).json({ success: true, message: "Item updated", cart });
+    return res.status(200).json({
+      success: true,
+      message: "Cart item updated successfully",
+    });
   } catch (error) {
     next(new CustomError("UpdateCartError", error.message, 500));
   }
 };
+
 
 const removeCartItem = async (req, res, next) => {
   try {
     const { user_id, product_id, variant_id } = req.body;
 
     if (!user_id || !product_id) {
-      return next(new CustomError("BadRequest", "user_id and product_id required", 400));
+      return next(new CustomError("BadRequest", "user_id and product_id are required", 400));
     }
 
-    const cart = await Cart.findOne({ user_id });
+    const userIdObj = new mongoose.Types.ObjectId(user_id);
+    const productIdObj = new mongoose.Types.ObjectId(product_id);
+    const variantIdObj = variant_id ? new mongoose.Types.ObjectId(variant_id) : null;
+
+    const cart = await Cart.findOne({ user_id: userIdObj });
     if (!cart) return next(new CustomError("NotFound", "Cart not found", 404));
 
-    cart.items = cart.items.filter(
-      (item) =>
-        !(
-          item.product_id.toString() === product_id &&
-          (variant_id ? item.variant_id?.toString() === variant_id : !item.variant_id)
-        )
-    );
+    const originalLength = cart.items.length;
+
+    cart.items = cart.items.filter((item) => {
+      const isSameProduct = item.product_id.toString() === productIdObj.toString();
+      const isSameVariant = variantIdObj
+        ? item.variant_id?.toString() === variantIdObj.toString()
+        : !item.variant_id;
+
+      return !(isSameProduct && isSameVariant);
+    });
+
+    // Check if any item was removed
+    if (cart.items.length === originalLength) {
+      return next(new CustomError("NotFound", "Cart item not found", 404));
+    }
 
     await cart.save();
-    res.status(200).json({ success: true, message: "Item removed", cart });
+
+    res.status(200).json({
+      success: true,
+      message: "Cart item removed successfully",
+      cart,
+    });
   } catch (error) {
     next(new CustomError("RemoveItemError", error.message, 500));
   }
 };
+
+
 
 const clearCart = async (req, res, next) => {
   try {
@@ -128,6 +219,108 @@ const clearCart = async (req, res, next) => {
   }
 };
 
+// const calculateCartTotalAmount = async (req, res, next) => {
+//   try {
+//     const userId = req.params.userId || req.user?._id;
+
+//     if (!userId) {
+//       throw new CustomError("User ID is required", 400);
+//     }
+
+//     const result = await Cart.aggregate([
+//       { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
+//       { $unwind: "$items" },
+
+//       // Lookup variant
+//       {
+//         $lookup: {
+//           from: "variants",
+//           localField: "items.variant_id",
+//           foreignField: "_id",
+//           as: "variant",
+//         },
+//       },
+//       {
+//         $unwind: {
+//           path: "$variant",
+//           preserveNullAndEmptyArrays: true,
+//         },
+//       },
+
+//       // Lookup product
+//       {
+//         $lookup: {
+//           from: "products",
+//           localField: "items.product_id",
+//           foreignField: "_id",
+//           as: "product",
+//         },
+//       },
+//       { $unwind: "$product" },
+
+//       // Determine price and quantity
+//       {
+//         $addFields: {
+//           itemPrice: {
+//             $cond: {
+//               if: { $ifNull: ["$variant.price", false] },
+//               then: "$variant.price",
+//               else: "$product.price",
+//             },
+//           },
+//           quantity: "$items.quantity",
+//           productId: "$items.product_id",
+//         },
+//       },
+
+//       // Calculate per item total and retain productId
+//       {
+//         $project: {
+//           _id: 0,
+//           totalPerItem: { $multiply: ["$itemPrice", "$quantity"] },
+//           productId: 1,
+//         },
+//       },
+
+//       // Group and sum
+//       {
+//         $group: {
+//           _id: null,
+//           totalAmount: { $sum: "$totalPerItem" },
+//           uniqueProducts: { $addToSet: "$productId" },
+//         },
+//       },
+
+//       // Project total amount and count of unique items
+//       {
+//         $project: {
+//           _id: 0,
+//           totalAmount: 1,
+//           uniqueItemCount: { $size: "$uniqueProducts" },
+//         },
+//       },
+//     ]);
+
+//     const totalAmount = result[0]?.totalAmount || 0;
+//     const uniqueItemCount = result[0]?.uniqueItemCount || 0;
+
+//     res.status(200).json({
+//       success: true,
+//       totalAmount,
+//       uniqueItemCount,
+//     });
+//   } catch (error) {
+//     next(
+//       error instanceof CustomError
+//         ? error
+//         : new CustomError(error.message, 500)
+//     );
+//   }
+// };
+
+
+ // if needed for ObjectId validation
+
 const calculateCartTotalAmount = async (req, res, next) => {
   try {
     const userId = req.params.userId || req.user?._id;
@@ -140,20 +333,33 @@ const calculateCartTotalAmount = async (req, res, next) => {
       { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
       { $unwind: "$items" },
 
-      // Lookup variant
+      // Lookup variantSet
       {
         $lookup: {
-          from: "variants",
-          localField: "items.variant_id",
-          foreignField: "_id",
-          as: "variant",
-        },
+          from: "productvariantsets",
+          localField: "items.product_id",
+          foreignField: "productId",
+          as: "variantSet"
+        }
       },
+      { $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true } },
+
+      // Get the matched combination object by _id (items.variant_id)
       {
-        $unwind: {
-          path: "$variant",
-          preserveNullAndEmptyArrays: true,
-        },
+        $addFields: {
+          matchedCombination: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$variantSet.combinations",
+                  as: "combo",
+                  cond: { $eq: ["$$combo._id", "$items.variant_id"] }
+                }
+              },
+              0
+            ]
+          }
+        }
       },
 
       // Lookup product
@@ -162,52 +368,52 @@ const calculateCartTotalAmount = async (req, res, next) => {
           from: "products",
           localField: "items.product_id",
           foreignField: "_id",
-          as: "product",
-        },
+          as: "product"
+        }
       },
       { $unwind: "$product" },
 
-      // Determine price and quantity
+      // Add item price from combination or fallback to product
       {
         $addFields: {
           itemPrice: {
             $cond: {
-              if: { $ifNull: ["$variant.price", false] },
-              then: "$variant.price",
-              else: "$product.price",
-            },
+              if: { $ifNull: ["$matchedCombination.price", false] },
+              then: "$matchedCombination.price",
+              else: "$product.price"
+            }
           },
           quantity: "$items.quantity",
-          productId: "$items.product_id",
-        },
+          productId: "$items.product_id"
+        }
       },
 
-      // Calculate per item total and retain productId
+      // Compute item total
       {
         $project: {
           _id: 0,
           totalPerItem: { $multiply: ["$itemPrice", "$quantity"] },
-          productId: 1,
-        },
+          productId: 1
+        }
       },
 
-      // Group and sum
+      // Group to calculate total
       {
         $group: {
           _id: null,
           totalAmount: { $sum: "$totalPerItem" },
-          uniqueProducts: { $addToSet: "$productId" },
-        },
+          uniqueProducts: { $addToSet: "$productId" }
+        }
       },
 
-      // Project total amount and count of unique items
+      // Final output
       {
         $project: {
           _id: 0,
           totalAmount: 1,
-          uniqueItemCount: { $size: "$uniqueProducts" },
-        },
-      },
+          uniqueItemCount: { $size: "$uniqueProducts" }
+        }
+      }
     ]);
 
     const totalAmount = result[0]?.totalAmount || 0;
@@ -216,7 +422,7 @@ const calculateCartTotalAmount = async (req, res, next) => {
     res.status(200).json({
       success: true,
       totalAmount,
-      uniqueItemCount,
+      uniqueItemCount
     });
   } catch (error) {
     next(
@@ -226,6 +432,7 @@ const calculateCartTotalAmount = async (req, res, next) => {
     );
   }
 };
+
 
 module.exports = {
   addToCart,
