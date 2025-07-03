@@ -22,8 +22,8 @@ const createProduct = async (req, res, next) => {
     }
 
     // Parse description only if it's a string
-    const parsedDescription =
-      typeof description === "string" ? JSON.parse(description) : description;
+    // const parsedDescription =
+    //   typeof description === "string" ? JSON.parse(description) : description;
 
     // Ensure imageUrls and imageKeys are arrays
     const parsedImageUrls = Array.isArray(imageUrls) ? imageUrls : JSON.parse(imageUrls);
@@ -32,7 +32,7 @@ const createProduct = async (req, res, next) => {
       category_id,
       vendor_id,
       product_name,
-      description: parsedDescription,
+      description,
       price,
       stock,
       isActive,
