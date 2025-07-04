@@ -15,9 +15,9 @@ const orderSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
-        variant_id: {
+        variant_combination_id: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Variant", // Optional, if variants exist
+          ref: "ProductVariantSet", // Optional, if variants exist
         },
         vendor_id: {
           type: mongoose.Schema.Types.ObjectId,
@@ -90,7 +90,7 @@ const orderSchema = new mongoose.Schema(
     },
     razorpayOrderId: {
       type: String,
-      unique: true,
+      // unique: true,
     },
     currency: {
       type: String,
@@ -98,7 +98,7 @@ const orderSchema = new mongoose.Schema(
     },
     razorpayPaymentId: {
       type : String,
-      unique : true
+      // unique : true
     }, 
     cancelledAt: {
       type: Date,
