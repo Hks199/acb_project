@@ -397,6 +397,7 @@ const getUserByAuthToken = async (req, res, next) => {
     }
 
     const userData = {
+      _id : user._id,
       firstName: user.first_name,
       lastName: user.last_name,
       role: user.role,
