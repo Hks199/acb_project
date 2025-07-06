@@ -15,7 +15,7 @@ router.post("/verify", verifyPayment);
 // router.patch("/orders/:orderId/customer-action", handleCustomerOrderAction);
 
 // Admin: shipped/delivered/refunded
-router.patch("/orders/:orderId/admin-action", handleAdminOrderAction);
+router.patch("/handle-admin-action", handleAdminOrderAction);
 router.patch("/cancelOrReturnOrderItem",cancelOrReturnOrderItem);
 
 module.exports = router;

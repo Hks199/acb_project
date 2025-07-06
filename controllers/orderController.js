@@ -158,33 +158,58 @@ const verifyPayment = async (req, res, next) => {
 //     }
 //   };
 
+
 const handleAdminOrderAction = async (req, res, next) => {
-    try {
-      const { orderId } = req.params;
-      const { action } = req.body;
-  
-      const order = await Order.findById(orderId);
-      if (!order) return next(new CustomError("NotFound", "Order not found", 404));
-  
-      if (action === "shipped") {
-        order.orderStatus = "Shipped";
-        order.shippedAt = new Date();
-      } else if (action === "delivered") {
-        order.orderStatus = "Delivered";
-        order.deliveredAt = new Date();
-      } else if (action === "refunded") {
-        order.orderStatus = "Refunded";
-        order.refundedAt = new Date();
-      } else {
-        return next(new CustomError("BadRequest", "Invalid admin action", 400));
-      }
-  
-      await order.save();
-      res.status(200).json({ success: true, message: `Order marked as ${action}`, order });
-    } catch (error) {
-      next(new CustomError("AdminOrderActionError", error.message, 500));
+  try {
+    const { action,orderId} = req.body;
+
+    const order = await Order.findById(orderId);
+    if (!order) return next(new CustomError("NotFound", "Order not found", 404));
+
+    const currentStatus = order.orderStatus;
+
+    // Allowed transitions mapping
+    const allowedTransitions = {
+      Pending: "confirmed",
+      Confirmed: "shipped",
+      Shipped: "delivered"
+    };
+
+    // Normalize to lowercase for safe comparison
+    const normalizedAction = action?.toLowerCase();
+
+    // Check if action is valid from current status
+    if (allowedTransitions[currentStatus] !== normalizedAction) {
+      return next(new CustomError(
+        "InvalidAction",
+        `Invalid action "${action}" for current order status "${currentStatus}". Expected action: "${allowedTransitions[currentStatus]}"`,
+        400
+      ));
     }
-  };
+
+    // Update order based on valid transition
+    if (normalizedAction === "confirmed") {
+      order.orderStatus = "Confirmed";
+    } else if (normalizedAction === "shipped") {
+      order.orderStatus = "Shipped";
+      order.shippedAt = new Date();
+    } else if (normalizedAction === "delivered") {
+      order.orderStatus = "Delivered";
+      order.deliveredAt = new Date();
+    }
+
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Order status updated to "${order.orderStatus}"`,
+      order
+    });
+  } catch (error) {
+    next(new CustomError("AdminOrderActionError", error.message, 500));
+  }
+};
+
 
   const cancelOrReturnOrderItem = async (req, res, next) => {
     const session = await mongoose.startSession();
@@ -291,8 +316,8 @@ const handleAdminOrderAction = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         message: `${status} successful for the item`,
-        removedItem: cancelledItems[0],
-        updatedOrder: order,
+        // removedItem: cancelledItems[0],
+        // updatedOrder: order,
       });
   
     } catch (err) {
