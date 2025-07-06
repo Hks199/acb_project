@@ -17,7 +17,7 @@ const cancelledOrderSchema = new mongoose.Schema(
     cancelledItems: [
       {
         product_id: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-        variant_id: { type: mongoose.Schema.Types.ObjectId, ref: "Variant" },
+        variant_combination_id: { type: mongoose.Schema.Types.ObjectId, ref: "Variant" },
         quantity: { type: Number, required: true },
         price_per_unit: { type: Number, required: true },
         total_price: { type: Number, required: true },
@@ -42,7 +42,7 @@ const cancelledOrderSchema = new mongoose.Schema(
       },
     transaction_id : {
         type : String,
-        unique : true
+        // unique : true
     },
     isProcessed: {
       type: Boolean,

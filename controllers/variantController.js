@@ -140,39 +140,74 @@ const deleteVariantSet = async (req, res, next) => {
   }
 };
 
+// const updateVariantsStock = async (orderedItems, session) => {
+//   console.log(orderedItems)
+//   for (const item of orderedItems) {
+//     const { product_id, variant_combination_id, quantity } = item;
+//     console.log(item)
+//     // 1. Fetch the ProductVariantSet
+//     const variantSet = await ProductVariantSet.findOne({ productId: product_id }).session(session);
+
+//     if (!variantSet) {
+//       // throw new CustomError("VariantSetNotFound", `No variant set found for product ${product_id}`, 404);
+//       return ;
+//     }
+
+//     // 2. Find the correct combination inside the variant set
+//     const combination = variantSet.combinations.find(
+//       (comb) => comb._id.toString() === variant_combination_id
+//     );
+
+//     if (!combination) {
+//       // throw new CustomError("CombinationNotFound", `Combination not found for variant ID ${variant_combination_id}`, 404);
+//        return ;
+//     }
+
+//     // 3. Check and update stock
+//     if (combination.stock < quantity && quantity > 0) { 
+//       throw new CustomError("OutOfStock", `Insufficient stock for combination ID ${variant_combination_id}`, 400);
+//     }
+//     const newStock = combination.stock - quantity;
+//     combination.stock = newStock;
+
+//     // 4. Mark nested array modified
+//     variantSet.markModified("combinations");
+
+//     // 5. Save with session
+//     await variantSet.save({ session });
+//   }
+// };
+
+
+
 const updateVariantsStock = async (orderedItems, session) => {
   for (const item of orderedItems) {
     const { product_id, variant_combination_id, quantity } = item;
 
-    // 1. Fetch the ProductVariantSet
+    if (!product_id || !variant_combination_id || typeof quantity !== "number") {
+      console.warn("Invalid ordered item detected:", item);
+      continue;
+    }
+
     const variantSet = await ProductVariantSet.findOne({ productId: product_id }).session(session);
+    if (!variantSet) continue;
 
-    if (!variantSet) {
-      // throw new CustomError("VariantSetNotFound", `No variant set found for product ${product_id}`, 404);
-      return ;
-    }
-
-    // 2. Find the correct combination inside the variant set
     const combination = variantSet.combinations.find(
-      (comb) => comb._id.toString() === variant_combination_id
+      (comb) => comb._id.toString() === variant_combination_id.toString()
     );
+    if (!combination) continue;
 
-    if (!combination) {
-      // throw new CustomError("CombinationNotFound", `Combination not found for variant ID ${variant_combination_id}`, 404);
-       return ;
-    }
+    const newStock = combination.stock - quantity;
 
-    // 3. Check and update stock
-    if (combination.stock < quantity) {
+    // Validation: only check out-of-stock if we are reducing stock
+    if (quantity > 0 && newStock < 0) {
       throw new CustomError("OutOfStock", `Insufficient stock for combination ID ${variant_combination_id}`, 400);
     }
 
-    combination.stock -= quantity;
+    // Update
+    combination.stock = newStock;
 
-    // 4. Mark nested array modified
     variantSet.markModified("combinations");
-
-    // 5. Save with session
     await variantSet.save({ session });
   }
 };

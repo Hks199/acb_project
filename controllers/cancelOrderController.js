@@ -1,5 +1,8 @@
 const CancelledOrder = require("../models/cancelOrderModel.js");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
+const {updateProductsStock} = require("./inventroryController.js");
+const {updateVariantsStock} = require("./variantController.js")
+
 
 const createOrUpdateCancelledOrder = async (
   {
@@ -7,6 +10,7 @@ const createOrUpdateCancelledOrder = async (
     user_id,
     cancelledItems,
     cancellationReason,
+    transaction_id, // Optional
   },
   session
 ) => {
@@ -19,17 +23,26 @@ const createOrUpdateCancelledOrder = async (
     throw new CustomError("Missing required fields or cancelledItems array is empty", 400);
   }
 
-  // Validate cancelledItems content
+  // Validate each cancelled item
   for (const item of cancelledItems) {
-    if (!item.total_price || typeof item.total_price !== "number") {
-      throw new CustomError("Each cancelled item must have a valid total_price", 400);
+    if (
+      !item.total_price ||
+      typeof item.total_price !== "number" ||
+      !item.product_id ||
+      !item.quantity
+    ) {
+      throw new CustomError("Invalid or missing fields in cancelledItems", 400);
     }
   }
 
-  // Calculate refund amount
-  const refundAmount = cancelledItems.reduce((sum, item) => sum + item.total_price, 0);
+  // Calculate total refund
+  const refundAmount = cancelledItems.reduce(
+    (sum, item) => sum + item.total_price,
+    0
+  );
 
   try {
+    // Check if already cancelled
     let cancelledOrder = await CancelledOrder.findOne({ orderId }).session(session);
 
     if (cancelledOrder) {
@@ -50,7 +63,7 @@ const createOrUpdateCancelledOrder = async (
       };
     }
 
-    // Create new cancelled order
+    // Build new cancelled order
     const newCancelledOrder = new CancelledOrder({
       orderId,
       user_id,
@@ -60,9 +73,21 @@ const createOrUpdateCancelledOrder = async (
       refundStatus: "Pending",
       totalRefundAmount: refundAmount,
       isProcessed: false,
+      ...(transaction_id ? { transaction_id } : {}), // Avoid inserting null if not provided
     });
 
     await newCancelledOrder.save({ session });
+
+    // Prepare stock rollback
+    const orderedItems = cancelledItems.map((item) => ({
+      product_id: item.product_id,
+      variant_combination_id: item.variant_combination_id || undefined,
+      quantity: -Math.abs(item.quantity), // return positive quantity to restore stock
+    }));
+
+    // Restore product and variant stock
+    await updateProductsStock(orderedItems, session);
+    await updateVariantsStock(orderedItems, session);
 
     return {
       success: true,
@@ -75,6 +100,7 @@ const createOrUpdateCancelledOrder = async (
       : new CustomError(error.message || "Failed to process cancelled order", 500);
   }
 };
+
 
 // PATCH /api/cancelled-orders/:id/process
 const markCancelledOrderAsProcessed = async (req, res, next) => {

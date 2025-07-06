@@ -157,7 +157,7 @@ const verifyPayment = async (req, res, next) => {
 //       next(new CustomError("CustomerOrderActionError", error.message, 500));
 //     }
 //   };
-  
+
 const handleAdminOrderAction = async (req, res, next) => {
     try {
       const { orderId } = req.params;
@@ -202,7 +202,6 @@ const handleAdminOrderAction = async (req, res, next) => {
       } = req.body;
   
       const returnImages = req.files?.returnImages;
-      console.log(returnImages)
       // Validate ObjectIds
       if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(productId)) {
         throw new CustomError("InvalidObjectId", "Invalid orderId or productId", 400);
@@ -249,7 +248,7 @@ const handleAdminOrderAction = async (req, res, next) => {
   
       const cancelledItems = [{
         product_id: targetItem.product_id,
-        variant_id: targetItem.variant_id,
+        variant_combination_id: targetItem.variant_combination_id,
         quantity: targetItem.quantity,
         price_per_unit: targetItem.price_per_unit,
         total_price: targetItem.total_price,
