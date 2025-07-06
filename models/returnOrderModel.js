@@ -46,6 +46,9 @@ const returnedOrderSchema = new mongoose.Schema(
       enum: ["Pending", "Processed", "NotRequired"],
       default: "Pending",
     },
+    refundedAt: {
+      type: Date,
+    },
     transaction_id: {
       type: String,
       unique: true,

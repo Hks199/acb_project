@@ -2,17 +2,20 @@ const express = require("express");
 const router = express.Router();
 const { createOrder,
     verifyPayment,
-    handleCustomerOrderAction,
-    handleAdminOrderAction
+    // handleCustomerOrderAction,
+    handleAdminOrderAction,
+    cancelOrReturnOrderItem 
+    
  } = require("../controllers/orderController");
 
 router.post("/create", createOrder);
 router.post("/verify", verifyPayment);
 
 // Customer: cancel/return
-router.patch("/orders/:orderId/customer-action", handleCustomerOrderAction);
+// router.patch("/orders/:orderId/customer-action", handleCustomerOrderAction);
 
 // Admin: shipped/delivered/refunded
 router.patch("/orders/:orderId/admin-action", handleAdminOrderAction);
+router.patch("/cancelOrReturnOrderItem",cancelOrReturnOrderItem);
 
 module.exports = router;

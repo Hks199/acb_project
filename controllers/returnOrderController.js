@@ -12,29 +12,42 @@ const createReturnedOrder = async (
     quantity,
     price_per_unit,
     returnReason,
-    returnImages, // Array of image files (e.g., from req.files.returnImages)
+    returnImages, // Expected to be from req.files.returnImages (could be a single file or array)
   },
   session
 ) => {
   try {
+    // Validate required fields
     if (!orderId || !user_id || !product_id || !quantity || !price_per_unit) {
       throw new CustomError("Missing required fields for returned order", 400);
     }
 
+    console.log(returnImages)
+
     const total_price = quantity * price_per_unit;
+
+    // Normalise returnImages to an array if it's a single file
+    const imageArray = Array.isArray(returnImages)
+      ? returnImages
+      : returnImages
+      ? [returnImages]
+      : [];
+    console.log(imageArray);
     const uploadedImageUrls = [];
     const uploadedImageKeys = [];
 
-    if (Array.isArray(returnImages) && returnImages.length > 0) {
-      for (const image of returnImages) {
-        if (!image) continue;
-
-        const { fileKey, publicUrl } = await s3UploadHandler(image, "return-orders");
+    for (const image of imageArray) {
+      // if (!image || !image.name) continue;
+      try {
+        const { fileKey, publicUrl } = await s3UploadHandler(image, "returnImage");
         uploadedImageUrls.push(publicUrl);
         uploadedImageKeys.push(fileKey);
+      } catch (err) {
+        console.error("S3 upload failed:", err);
       }
     }
-
+    console.log(uploadedImageUrls)
+    // Create the returned order document
     const returnedOrder = new ReturnedOrder({
       orderId,
       user_id,
@@ -51,7 +64,6 @@ const createReturnedOrder = async (
     });
 
     const savedOrder = await returnedOrder.save({ session });
-
     return savedOrder;
   } catch (error) {
     throw error instanceof CustomError
@@ -59,6 +71,7 @@ const createReturnedOrder = async (
       : new CustomError(error.message || "Failed to create returned order", 500);
   }
 };
+
 
 
 const markAsInspected = async (req, res, next) => {

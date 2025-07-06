@@ -65,7 +65,7 @@ const orderSchema = new mongoose.Schema(
 
     orderStatus: {
       type: String,
-      enum: ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"],
+      enum: ["Pending", "Confirmed", "Shipped", "Delivered"],
       default: "Pending",
     },
 
@@ -100,23 +100,23 @@ const orderSchema = new mongoose.Schema(
       type : String,
       // unique : true
     }, 
-    cancelledAt: {
-      type: Date,
-    },
+    // cancelledAt: {
+    //   type: Date,
+    // },
 
-    cancellationReason: {
-      type: String,
-      trim: true,
-    },
-    refundedAt: {
-      type: Date,
-    },
-    returnReason: {
-      type: String,
-    },
-    returnedAt: {
-      type: Date,
-    },
+    // cancellationReason: {
+    //   type: String,
+    //   trim: true,
+    // },
+    // refundedAt: {
+    //   type: Date,
+    // },
+    // returnReason: {
+    //   type: String,
+    // },
+    // returnedAt: {
+    //   type: Date,
+    // },
     shippedAt: {
       type: Date,
     },

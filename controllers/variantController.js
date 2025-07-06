@@ -148,7 +148,8 @@ const updateVariantsStock = async (orderedItems, session) => {
     const variantSet = await ProductVariantSet.findOne({ productId: product_id }).session(session);
 
     if (!variantSet) {
-      throw new CustomError("VariantSetNotFound", `No variant set found for product ${product_id}`, 404);
+      // throw new CustomError("VariantSetNotFound", `No variant set found for product ${product_id}`, 404);
+      return ;
     }
 
     // 2. Find the correct combination inside the variant set
