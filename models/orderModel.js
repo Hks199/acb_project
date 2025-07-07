@@ -100,23 +100,6 @@ const orderSchema = new mongoose.Schema(
       type : String,
       // unique : true
     }, 
-    // cancelledAt: {
-    //   type: Date,
-    // },
-
-    // cancellationReason: {
-    //   type: String,
-    //   trim: true,
-    // },
-    // refundedAt: {
-    //   type: Date,
-    // },
-    // returnReason: {
-    //   type: String,
-    // },
-    // returnedAt: {
-    //   type: Date,
-    // },
     shippedAt: {
       type: Date,
     },

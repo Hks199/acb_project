@@ -203,7 +203,7 @@ const handleAdminOrderAction = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: `Order status updated to "${order.orderStatus}"`,
-      order
+      // order
     });
   } catch (error) {
     next(new CustomError("AdminOrderActionError", error.message, 500));
@@ -328,7 +328,130 @@ const handleAdminOrderAction = async (req, res, next) => {
     }
   };
   
-
+  
+  
+  const getUserOrderedProducts = async (req, res, next) => {
+    try {
+      const { user_id ,page = 1, limit = 10,} = req.body;
+      const skip = (page - 1) * limit;
+  
+      if (!mongoose.Types.ObjectId.isValid(user_id)) {
+        return next(new CustomError("InvalidUserId", "Invalid user_id", 400));
+      }
+  
+      const pipeline = [
+        {
+          $match: {
+            user_id: new mongoose.Types.ObjectId(user_id),
+            isDeleted: false,
+          },
+        },
+        { $unwind: "$orderedItems" },
+  
+        // Product lookup
+        {
+          $lookup: {
+            from: "products",
+            localField: "orderedItems.product_id",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+  
+        // Variant lookup
+        {
+          $lookup: {
+            from: "productvariantsets",
+            localField: "orderedItems.variant_combination_id",
+            foreignField: "combinations._id",
+            as: "variantSet",
+          },
+        },
+        { $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            variant_combination: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$variantSet.combinations",
+                    as: "comb",
+                    cond: {
+                      $eq: ["$$comb._id", "$orderedItems.variant_combination_id"],
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+  
+        // Final projection
+        {
+          $project: {
+            _id: 0,
+            order_id: "$_id",
+            product_id: "$orderedItems.product_id",
+            product_name: "$product.product_name",
+            product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
+            quantity: "$orderedItems.quantity",
+            price_per_unit: "$orderedItems.price_per_unit",
+            total_price: "$orderedItems.total_price",
+            variant_combination: 1,
+            orderStatus: 1,
+            // paymentStatus: 1,
+            // paymentMethod: 1,
+            orderedAt: "$createdAt",
+            // razorpayOrderId: 1,
+            // razorpayPaymentId: 1,
+            shippedAt: 1,
+            deliveredAt: 1,
+          },
+        },
+  
+        // Sort by orderedAt
+        { $sort: { orderedAt: -1 } },
+  
+        // Pagination
+        { $skip: skip },
+        { $limit: limit },
+      ];
+  
+      const orderedProducts = await Order.aggregate(pipeline);
+  
+      const totalCountResult = await Order.aggregate([
+        {
+          $match: {
+            user_id: new mongoose.Types.ObjectId(user_id),
+            isDeleted: false,
+          },
+        },
+        { $unwind: "$orderedItems" },
+        { $count: "total" },
+      ]);
+  
+      const total = totalCountResult[0]?.total || 0;
+  
+      return res.status(200).json({
+        success: true,
+        count: orderedProducts.length,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        data: orderedProducts,
+      });
+    } catch (error) {
+      next(
+        error instanceof CustomError
+          ? error
+          : new CustomError("GetUserOrdersError", error.message, 500)
+      );
+    }
+  };
+  
+  
   
 
 module.exports = {
@@ -336,7 +459,8 @@ module.exports = {
     verifyPayment,
     // handleCustomerOrderAction,
     handleAdminOrderAction,
-    cancelOrReturnOrderItem
+    cancelOrReturnOrderItem,
+    getUserOrderedProducts
 }
 
 
