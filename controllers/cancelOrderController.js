@@ -2,7 +2,7 @@ const CancelledOrder = require("../models/cancelOrderModel.js");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
 const {updateProductsStock} = require("./inventroryController.js");
 const {updateVariantsStock} = require("./variantController.js")
-
+const mongoose = require("mongoose");
 
 const createOrUpdateCancelledOrder = async (
   {
@@ -171,11 +171,121 @@ const updateRefundStatus = async (req, res, next) => {
   }
 };
 
+const getUserCancelledItems = async (req, res, next) => {
+  try {
+    const {user_id,page=1,limit=10} = req.body;
+    const skip = (page - 1) * limit;
+
+    if (!mongoose.Types.ObjectId.isValid(user_id)) {
+      return next(new CustomError("InvalidUserId", "Invalid user_id", 400));
+    }
+
+    const pipeline = [
+      {
+        $match: {
+          user_id: new mongoose.Types.ObjectId(user_id),
+        },
+      },
+      { $unwind: "$cancelledItems" },
+
+      // Lookup Product Info
+      {
+        $lookup: {
+          from: "products",
+          localField: "cancelledItems.product_id",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+
+      // Lookup Variant Info (if exists)
+      {
+        $lookup: {
+          from: "productvariantsets",
+          localField: "cancelledItems.variant_combination_id",
+          foreignField: "combinations._id",
+          as: "variantSet",
+        },
+      },
+      { $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          variant_combination: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$variantSet.combinations",
+                  as: "comb",
+                  cond: {
+                    $eq: ["$$comb._id", "$cancelledItems.variant_combination_id"],
+                  },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      },
+
+      // Final Projection
+      {
+        $project: {
+          _id: 0,
+          orderId: 1,
+          cancelledAt: 1,
+          refundStatus: 1,
+          totalRefundAmount: 1,
+          transaction_id: 1,
+          cancellationReason: 1,
+          isProcessed: 1,
+          product_id: "$cancelledItems.product_id",
+          variant_combination_id: "$cancelledItems.variant_combination_id",
+          quantity: "$cancelledItems.quantity",
+          price_per_unit: "$cancelledItems.price_per_unit",
+          total_price: "$cancelledItems.total_price",
+          product_name: "$product.product_name",
+          product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
+          variant_combination: 1,
+        },
+      },
+
+      { $sort: { cancelledAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    const cancelledItems = await CancelledOrder.aggregate(pipeline);
+
+    const totalResult = await CancelledOrder.aggregate([
+      { $match: { user_id: new mongoose.Types.ObjectId(user_id) } },
+      { $unwind: "$cancelledItems" },
+      { $count: "total" },
+    ]);
+    const total = totalResult[0]?.total || 0;
+
+    res.status(200).json({
+      success: true,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      data: cancelledItems,
+    });
+  } catch (error) {
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError("GetCancelledOrdersError", error.message, 500)
+    );
+  }
+};
+
 
 module.exports = {
     createOrUpdateCancelledOrder,  
     markCancelledOrderAsProcessed,
-    updateRefundStatus
+    updateRefundStatus,
+    getUserCancelledItems
 };
 
 
