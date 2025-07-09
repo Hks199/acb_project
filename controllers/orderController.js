@@ -451,6 +451,124 @@ const handleAdminOrderAction = async (req, res, next) => {
     }
   };
   
+
+  const listAllOrders = async (req, res, next) => {
+    try {
+      const {limit=10,page=1} = req.body;
+      const skip = (page - 1) * limit;
+  
+      const pipeline = [
+        { $match: { isDeleted: false } },
+  
+        // Unwind orderedItems to flatten
+        { $unwind: "$orderedItems" },
+  
+        // Lookup Product
+        {
+          $lookup: {
+            from: "products",
+            localField: "orderedItems.product_id",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+    
+        // Lookup Variant (if any)
+        {
+          $lookup: {
+            from: "productvariantsets",
+            localField: "orderedItems.variant_combination_id",
+            foreignField: "combinations._id",
+            as: "variantSet",
+          },
+        },
+        {
+          $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true },
+        },
+        {
+          $addFields: {
+            variant_combination: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$variantSet.combinations",
+                    as: "comb",
+                    cond: {
+                      $eq: ["$$comb._id", "$orderedItems.variant_combination_id"],
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+  
+        // Lookup User Info
+        {
+          $lookup: {
+            from: "users",
+            localField: "user_id",
+            foreignField: "_id",
+            as: "user",
+          },
+        },
+        { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+  
+        // Final projection
+        {
+          $project: {
+            order_id: "$_id",
+            user_id: 1,
+            name : "$user.first_name",
+            // product: {
+              // _id: "$product._id",
+              // name: "$product.product_name",
+              // image: { $arrayElemAt: ["$product.imageUrls", 0] },
+            // },
+            // variant_combination: 1,
+            quantity: "$orderedItems.quantity",
+            price_per_unit: "$orderedItems.price_per_unit",
+            total_price: "$orderedItems.total_price",
+            // shippingAddress: 1,
+            // paymentMethod: 1,
+            // paymentStatus: 1,
+            orderStatus: 1,
+            // subtotal: 1,
+            // deliveryCharge: 1,
+            totalAmount: 1,
+            shippedAt: 1,
+            deliveredAt: 1,
+            createdAt: 1,
+          },
+        },
+  
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ];
+  
+      const orders = await mongoose.model("Order").aggregate(pipeline);
+  
+      const totalCount = await mongoose.model("Order").countDocuments({ isDeleted: false });
+  
+      res.status(200).json({
+        success: true,
+        totalOrders: totalCount,
+        currentPage: page,
+        totalPages: Math.ceil(totalCount / limit),
+        data: orders,
+      });
+    } catch (error) {
+      next(
+        error instanceof CustomError
+          ? error
+          : new CustomError("ListOrdersError", error.message, 500)
+      );
+    }
+  };
+  
   
   
 
@@ -461,7 +579,7 @@ module.exports = {
     handleAdminOrderAction,
     cancelOrReturnOrderItem,
     getUserOrderedProducts,
-    
+    listAllOrders
 
   }
 
