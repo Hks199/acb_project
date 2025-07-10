@@ -101,20 +101,20 @@ const loginUser = async (req, res, next) => {
     }
 
     // 📌 **Check if user is active**
-    // if (!user.isActive) {
-    //   // **Generate OTP & Set Expiration**
-    //   const otp = user.generateOtp();
-    //   await user.save();
+    if (!user.isOtpVerify) {
+      // **Generate OTP & Set Expiration**
+      const otp = user.generateOtp();
+      await user.save();
 
-    //   // **Send OTP via Email**
-    //   await sendOTP(otp, user.email, user.first_name);
+      // **Send OTP via Email**
+      await sendOTP(otp, user.email, user.first_name);
 
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: "UnverifiedUser",
-    //     message: "Your account is not verified. OTP sent to your email. Please verify your email.",
-    //   });
-    // }
+      return res.status(400).json({
+        success: false,
+        error: "UnverifiedUser",
+        message: "Your account is not verified. OTP sent to your email. Please verify your email.",
+      });
+    }
 
     // 📌 **Reset OTP verification status after login**
     // user.isOtpVerify = false;
@@ -166,6 +166,8 @@ const forgotPassword = async (req, res, next) => {
 
     // Generate OTP & Set Expiration
     const otp = user.generateOtp();
+
+    user.isOtpVerify = false;
 
     await user.save();
 
