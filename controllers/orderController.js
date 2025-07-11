@@ -569,7 +569,133 @@ const handleAdminOrderAction = async (req, res, next) => {
     }
   };
   
+
+
   
+  const getOrderDetails = async (req, res, next) => {
+    try {
+      const { orderId } = req.body;
+  
+      if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        return next(new CustomError("Invalid Order ID", 400));
+      }
+  
+      const pipeline = [
+        { $match: { _id: new mongoose.Types.ObjectId(orderId), isDeleted: false } },
+  
+        { $unwind: "$orderedItems" },
+  
+        // Lookup product details
+        {
+          $lookup: {
+            from: "products",
+            localField: "orderedItems.product_id",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+  
+        // Lookup variant combination
+        {
+          $lookup: {
+            from: "productvariantsets",
+            localField: "orderedItems.variant_combination_id",
+            foreignField: "combinations._id",
+            as: "variantSet",
+          },
+        },
+        { $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            variant_combination: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$variantSet.combinations",
+                    as: "comb",
+                    cond: {
+                      $eq: ["$$comb._id", "$orderedItems.variant_combination_id"],
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+  
+        {
+          $group: {
+            _id: "$_id",
+            user_id: { $first: "$user_id" },
+            shippingAddress: { $first: "$shippingAddress" },
+            paymentMethod: { $first: "$paymentMethod" },
+            paymentStatus: { $first: "$paymentStatus" },
+            orderStatus: { $first: "$orderStatus" },
+            subtotal: { $first: "$subtotal" },
+            tax: { $first: "$tax" },
+            deliveryCharge: { $first: "$deliveryCharge" },
+            totalAmount: { $first: "$totalAmount" },
+            razorpayOrderId: { $first: "$razorpayOrderId" },
+            currency: { $first: "$currency" },
+            shippedAt: { $first: "$shippedAt" },
+            deliveredAt: { $first: "$deliveredAt" },
+            createdAt: { $first: "$createdAt" },
+            orderedItems: {
+              $push: {
+                product_id: "$orderedItems.product_id",
+                quantity: "$orderedItems.quantity",
+                price_per_unit: "$orderedItems.price_per_unit",
+                total_price: "$orderedItems.total_price",
+                product_name: "$product.product_name",
+                product_images: "$product.imageUrls",
+                variant_combination: "$variant_combination",
+              },
+            },
+          },
+        },
+  
+        {
+          $project: {
+            _id: 0,
+            order_id: "$_id",
+            user_id: 1,
+            shippingAddress: 1,
+            paymentMethod: 1,
+            paymentStatus: 1,
+            orderStatus: 1,
+            subtotal: 1,
+            tax: 1,
+            deliveryCharge: 1,
+            totalAmount: 1,
+            razorpayOrderId: 1,
+            currency: 1,
+            shippedAt: 1,
+            deliveredAt: 1,
+            createdAt: 1,
+            orderedItems: 1,
+          },
+        },
+      ];
+  
+      const result = await Order.aggregate(pipeline);
+  
+      if (!result.length) {
+        return next(new CustomError("Order not found", 404));
+      }
+  
+      res.status(200).json({
+        success: true,
+        message: "Order details fetched successfully",
+        data: result[0], // single order object
+      });
+    } catch (err) {
+      next(new CustomError("OrderDetailsError", err.message, 500));
+    }
+  };
+  
+
   
 
 module.exports = {
@@ -579,7 +705,8 @@ module.exports = {
     handleAdminOrderAction,
     cancelOrReturnOrderItem,
     getUserOrderedProducts,
-    listAllOrders
+    listAllOrders,
+    getOrderDetails
 
   }
 

@@ -6,13 +6,16 @@ const { createOrder,
     handleAdminOrderAction,
     cancelOrReturnOrderItem,
     getUserOrderedProducts,
-    listAllOrders
+    listAllOrders,
+    getOrderDetails
+    
  } = require("../controllers/orderController");
 
 router.post("/create", createOrder);
 router.post("/verify", verifyPayment);
 router.post('/getUserOrderedProducts',getUserOrderedProducts);
 router.post('/listAllOrders',listAllOrders);
+router.post('/getOrderDetails',getOrderDetails);
 
 // Customer: cancel/return
 // router.patch("/orders/:orderId/customer-action", handleCustomerOrderAction);
