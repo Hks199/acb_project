@@ -3,14 +3,15 @@ const router = express.Router();
 const {
         markCancelledOrderAsProcessed,
         updateRefundStatus,
-        getUserCancelledItems
+        getUserCancelledItems,
+        
 
  } = require("../controllers/cancelOrderController");
 
 
 router.patch("/cancelled-orders/:id/process", markCancelledOrderAsProcessed);
 
-router.patch("/cancelled-orders/:id/refund-status",updateRefundStatus);
+router.patch("/cancelled-orders-status-update",updateRefundStatus);
 
 router.post("/user-cancel-order",getUserCancelledItems)
 

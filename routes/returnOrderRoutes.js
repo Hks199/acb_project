@@ -10,6 +10,6 @@ const {
 } = require("../controllers/returnOrderController");
 
 router.patch("/return/:id/inspect", markAsInspected);
-router.patch("/return/:id/status", updateReturnStatus);
+router.patch("/return-status", updateReturnStatus);
 router.post("/user-return-item",getUserReturnedItems);
 module.exports = router;

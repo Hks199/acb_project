@@ -108,8 +108,8 @@ const markAsInspected = async (req, res, next) => {
 
   const updateReturnStatus = async (req, res, next) => {
     try {
-      const { id } = req.params;
-      const {refundStatus, transaction_id } = req.body;
+      
+      const {id,refundStatus, transaction_id } = req.body;
   
       if (!refundStatus) {
         return next(new CustomError("Return status is required", 400));

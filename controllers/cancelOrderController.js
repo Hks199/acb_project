@@ -136,8 +136,7 @@ const markCancelledOrderAsProcessed = async (req, res, next) => {
 // PATCH /api/cancelled-orders/:id/refund-status
 const updateRefundStatus = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { refundStatus, transaction_id } = req.body;
+    const {id, refundStatus, transaction_id } = req.body;
 
     if (!refundStatus) {
       return next(new CustomError("BadRequest", "Refund status is required", 400));
