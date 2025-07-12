@@ -694,8 +694,73 @@ const handleAdminOrderAction = async (req, res, next) => {
       next(new CustomError("OrderDetailsError", err.message, 500));
     }
   };
+    
   
-
+  const generateOrderBill = async (req, res, next) => {
+    try {
+      const { orderId } = req.body;
+  
+      if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        return next(new CustomError("Invalid Order ID", 400));
+      }
+  
+      const order = await Order.findById(orderId)
+        .populate("user_id", "first_name email phone")
+        .populate("orderedItems.product_id", "product_name imageUrls")
+        .lean();
+  
+      if (!order) {
+        return next(new CustomError("Order not found", 404));
+      }
+  
+      // Format bill
+      const bill = {
+        invoiceNumber: `INV-${orderId.toString().slice(-6).toUpperCase()}`,
+        orderDate: new Date(order.createdAt).toLocaleString(),
+        customer: {
+          name: order.user_id.name,
+          email: order.user_id.email,
+          phone: order.user_id.phone,
+          shippingAddress: order.shippingAddress,
+        },
+        payment: {
+          method: order.paymentMethod,
+          status: order.paymentStatus,
+          currency: order.currency,
+        },
+        items: order.orderedItems.map((item, index) => ({
+          srNo: index + 1,
+          productName: item.product_id.product_name,
+          image: item.product_id.imageUrls?.[0] || null,
+          vendor: item.vendor_id.name,
+          quantity: item.quantity,
+          unitPrice: item.price_per_unit,
+          total: item.total_price,
+        })),
+        charges: {
+          subtotal: order.subtotal,
+          tax: order.tax,
+          deliveryCharge: order.deliveryCharge,
+          totalAmount: order.totalAmount,
+        },
+        status: {
+          orderStatus: order.orderStatus,
+          shippedAt: order.shippedAt,
+          deliveredAt: order.deliveredAt,
+        },
+      };
+  
+      return res.status(200).json({
+        success: true,
+        message: "Order bill generated successfully",
+        bill,
+      });
+    } catch (error) {
+      next(new CustomError("GenerateBillError", error.message, 500));
+    }
+  };
+  
+  
   
 
 module.exports = {
@@ -706,7 +771,9 @@ module.exports = {
     cancelOrReturnOrderItem,
     getUserOrderedProducts,
     listAllOrders,
-    getOrderDetails
+    getOrderDetails,
+    generateOrderBill
+
 
   }
 
