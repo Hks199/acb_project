@@ -718,7 +718,7 @@ const handleAdminOrderAction = async (req, res, next) => {
   
       // Format bill
       const bill = {
-        invoiceNumber: `INV-${order.order_number}`,
+        invoiceNumber: `INV-${order.order_number.split("-")[1]}`,
         orderDate: new Date(order.createdAt).toLocaleString(),
         customer: {
           name: order.user_id.name,
