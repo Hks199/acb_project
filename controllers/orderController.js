@@ -26,11 +26,11 @@ const createOrder = async (req, res, next) => {
     const totalAmount = subtotal + tax + deliveryCharge;
 
     // Step 1: Create Razorpay order
-    // const razorpayOrder = await razorpay.orders.create({
-    //   amount: totalAmount * 100, // paise
-    //   currency: "INR",
-    //   receipt: `receipt_${Date.now()}`,
-    // });
+    const razorpayOrder = await razorpay.orders.create({
+      amount: totalAmount * 100, // paise
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
+    });
 
     // Step 2: Save order in DB inside transaction
     const order = await Order.create(
@@ -45,8 +45,8 @@ const createOrder = async (req, res, next) => {
           tax,
           deliveryCharge,
           totalAmount,
-          // razorpayOrderId: razorpayOrder.id,
-          // currency: razorpayOrder.currency,
+          razorpayOrderId: razorpayOrder.id,
+          currency: razorpayOrder.currency,
           razorpayOrderId: "RAZORPAY2025",
           currency: "INR"
         },
@@ -64,11 +64,11 @@ const createOrder = async (req, res, next) => {
     res.status(201).json({
       success: true,
       order: order[0], // created via array
-      // razorpayOrder: {
-      //   id: razorpayOrder.id,
-      //   amount: razorpayOrder.amount,
-      //   currency: razorpayOrder.currency,
-      // },
+      razorpayOrder: {
+        id: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+      },
     });
   } catch (error) {
     await session.abortTransaction();
@@ -87,7 +87,7 @@ const verifyPayment = async (req, res, next) => {
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
 
     const generated_signature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_SECRET)
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
