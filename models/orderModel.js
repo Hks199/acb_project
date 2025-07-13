@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema(
   {
+    order_number : {
+      type : mongoose.Schema.Types.ObjectId,
+      unique:true,
+      required : true
+    },
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -19,11 +24,11 @@ const orderSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "ProductVariantSet", // Optional, if variants exist
         },
-        vendor_id: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Vendor",
-          required: true,
-        },
+        // vendor_id: {
+        //   type: mongoose.Schema.Types.ObjectId,
+        //   ref: "Vendor",
+        //   required: true,
+        // },
         quantity: {
           type: Number,
           required: true,
@@ -113,5 +118,6 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 
 module.exports = mongoose.model("Order", orderSchema);

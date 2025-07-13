@@ -227,6 +227,7 @@ const markAsInspected = async (req, res, next) => {
             variant_id: 1,
             "product.product_name": 1,
             "product.imageUrls": 1,
+            "product.order_number" : 1,
             variant_combination: 1,
           },
         },

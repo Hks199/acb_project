@@ -15,7 +15,7 @@ const createProduct = async (req, res, next) => {
       isActive,
       imageUrls
     } = req.body;
-
+    
     // Basic validation
     if (!category_id || !vendor_id || !product_name || !description || !price || !imageUrls) {
       throw new CustomError("Missing required fields", 400);
@@ -66,14 +66,14 @@ const getAllProducts = async (req, res, next) => {
 // READ ONE
 const getProductById = async (req, res, next) => {
   try {
-    const productId = req.params.id;
+    const productid = req.params.id;
 
     // Validate ObjectId if needed
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
+    if (!mongoose.Types.ObjectId.isValid(productid)) {
       return next(new CustomError("InvalidId", "Invalid product ID", 400));
     }
 
-    const product = await Product.findById(productId);
+    const product = await Product.findById(productid);
     if (!product) {
       return next(new CustomError("NotFound", "Product not found", 404));
     }
@@ -252,6 +252,7 @@ const getProductsSortedByReviews = async (req, res, next) => {
       {
         $project: {
           _id: 1,
+          productId : 1,
           product_name: 1,
           price: 1,
           stock: 1,

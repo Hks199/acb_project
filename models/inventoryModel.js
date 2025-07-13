@@ -2,12 +2,19 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
   {
+    productId: {
+      type: String,
+      unique: true,
+    },
     category_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
       required: true,
     },
-
+    seq: {
+      type: Number,
+      default: 0
+    },
     vendor_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
@@ -64,5 +71,24 @@ const productSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+
+productSchema.pre("save", async function (next) {
+  if (this.productId) return next(); // Skip if already set
+
+  const lastProduct = await mongoose.model("Product").findOne().sort({ createdAt: -1 }).select("productId");
+
+  let nextId = 1;
+  if (lastProduct && lastProduct.productId) {
+    const lastNum = parseInt(lastProduct.productId.split("-")[1]);
+    if (!isNaN(lastNum)) {
+      nextId = lastNum + 1;
+    }
+  }
+
+  this.productId = `PROD-${String(nextId).padStart(4, "0")}`;
+  next();
+});
+
 
 module.exports = mongoose.model("Product", productSchema);

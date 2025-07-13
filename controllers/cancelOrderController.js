@@ -244,6 +244,7 @@ const getUserCancelledItems = async (req, res, next) => {
           price_per_unit: "$cancelledItems.price_per_unit",
           total_price: "$cancelledItems.total_price",
           product_name: "$product.product_name",
+          order_number : "$product.order_number",
           product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
           variant_combination: 1,
         },

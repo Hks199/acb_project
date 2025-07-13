@@ -7,13 +7,12 @@ const {createReturnedOrder} = require("./returnOrderController.js")
 const {updateProductsStock} = require("./inventroryController.js");
 const {updateVariantsStock} = require("./variantController.js")
 const mongoose = require("mongoose");
-
+const {generateOrderId} = require("../helpers/generateOrderId.js");
 
 const createOrder = async (req, res, next) => {
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
-
     const {
       user_id,
       orderedItems,
@@ -23,7 +22,7 @@ const createOrder = async (req, res, next) => {
       tax = 0,
       deliveryCharge = 0,
     } = req.body;
-
+    let  order_number = await generateOrderId();
     const totalAmount = subtotal + tax + deliveryCharge;
 
     // Step 1: Create Razorpay order
@@ -38,6 +37,7 @@ const createOrder = async (req, res, next) => {
       [
         {
           user_id,
+          order_number,
           orderedItems,
           shippingAddress,
           paymentMethod,
@@ -521,6 +521,7 @@ const handleAdminOrderAction = async (req, res, next) => {
           $project: {
             order_id: "$_id",
             user_id: 1,
+            order_number : 1,
             name : "$user.first_name",
             // product: {
               // _id: "$product._id",
@@ -629,6 +630,7 @@ const handleAdminOrderAction = async (req, res, next) => {
           $group: {
             _id: "$_id",
             user_id: { $first: "$user_id" },
+            order_number : {$first : "$order_number"},
             shippingAddress: { $first: "$shippingAddress" },
             paymentMethod: { $first: "$paymentMethod" },
             paymentStatus: { $first: "$paymentStatus" },
@@ -661,6 +663,7 @@ const handleAdminOrderAction = async (req, res, next) => {
             _id: 0,
             order_id: "$_id",
             user_id: 1,
+            order_number : 1, 
             shippingAddress: 1,
             paymentMethod: 1,
             paymentStatus: 1,
@@ -715,7 +718,7 @@ const handleAdminOrderAction = async (req, res, next) => {
   
       // Format bill
       const bill = {
-        invoiceNumber: `INV-${orderId.toString().slice(-6).toUpperCase()}`,
+        invoiceNumber: `INV-${order.order_number}`,
         orderDate: new Date(order.createdAt).toLocaleString(),
         customer: {
           name: order.user_id.name,
@@ -773,7 +776,6 @@ module.exports = {
     listAllOrders,
     getOrderDetails,
     generateOrderBill
-
 
   }
 
