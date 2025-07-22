@@ -47,7 +47,6 @@ const createOrder = async (req, res, next) => {
           totalAmount,
           razorpayOrderId: razorpayOrder.id,
           currency: razorpayOrder.currency,
-          razorpayOrderId: "RAZORPAY2025",
           currency: "INR"
         },
       ],
@@ -66,7 +65,7 @@ const createOrder = async (req, res, next) => {
       order: order[0], // created via array
       razorpayOrder: {
         id: razorpayOrder.id,
-        amount: razorpayOrder.amount,
+        amount: razorpayOrder.amount/100,
         currency: razorpayOrder.currency,
       },
     });

@@ -95,7 +95,7 @@ const orderSchema = new mongoose.Schema(
     },
     razorpayOrderId: {
       type: String,
-      // unique: true,
+      unique: true,
     },
     currency: {
       type: String,
@@ -103,7 +103,7 @@ const orderSchema = new mongoose.Schema(
     },
     razorpayPaymentId: {
       type : String,
-      // unique : true
+      unique : true
     }, 
     shippedAt: {
       type: Date,
