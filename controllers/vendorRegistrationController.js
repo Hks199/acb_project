@@ -19,11 +19,13 @@ const getAllVendors = async (req, res, next) => {
 
     const vendors = await Vendor.find().skip(skip).limit(limit);
     const total = await Vendor.countDocuments();
+    let totalPages = Math.ceil(total / limit)
 
     res.status(200).json({
       success: true,
       page,
       total,
+      totalPages,
       pageSize: vendors.length,
       data: vendors,
     });

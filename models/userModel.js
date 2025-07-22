@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    pin_code : {
+     type : String,
+     trim : true
+    },
     password: {
       type: String,
       required: true,

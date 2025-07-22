@@ -407,6 +407,7 @@ const getUserByAuthToken = async (req, res, next) => {
       mobile_number: user.mobile_number,
       gender: user.gender,
       landmark: user.landmark,
+      pin_code : user.pin_code,
       state: user.state,
       city: user.city,
       country: user.country,
