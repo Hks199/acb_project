@@ -56,6 +56,7 @@ const createOrder = async (req, res, next) => {
     // Step 3: Update stocks using the same session
     await updateProductsStock(orderedItems, session);
     await updateVariantsStock(orderedItems, session);
+    await clearCartAfterPurchase(user_id,session);
 
     await session.commitTransaction();
     session.endSession();

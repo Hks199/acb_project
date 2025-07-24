@@ -219,104 +219,13 @@ const clearCart = async (req, res, next) => {
   }
 };
 
-// const calculateCartTotalAmount = async (req, res, next) => {
-//   try {
-//     const userId = req.params.userId || req.user?._id;
+const clearCartAfterPurchase = async(user_id,session)=>{
 
-//     if (!userId) {
-//       throw new CustomError("User ID is required", 400);
-//     }
+  const cart = await Cart.findOne({ user_id }).session(session);
 
-//     const result = await Cart.aggregate([
-//       { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
-//       { $unwind: "$items" },
-
-//       // Lookup variant
-//       {
-//         $lookup: {
-//           from: "variants",
-//           localField: "items.variant_id",
-//           foreignField: "_id",
-//           as: "variant",
-//         },
-//       },
-//       {
-//         $unwind: {
-//           path: "$variant",
-//           preserveNullAndEmptyArrays: true,
-//         },
-//       },
-
-//       // Lookup product
-//       {
-//         $lookup: {
-//           from: "products",
-//           localField: "items.product_id",
-//           foreignField: "_id",
-//           as: "product",
-//         },
-//       },
-//       { $unwind: "$product" },
-
-//       // Determine price and quantity
-//       {
-//         $addFields: {
-//           itemPrice: {
-//             $cond: {
-//               if: { $ifNull: ["$variant.price", false] },
-//               then: "$variant.price",
-//               else: "$product.price",
-//             },
-//           },
-//           quantity: "$items.quantity",
-//           productId: "$items.product_id",
-//         },
-//       },
-
-//       // Calculate per item total and retain productId
-//       {
-//         $project: {
-//           _id: 0,
-//           totalPerItem: { $multiply: ["$itemPrice", "$quantity"] },
-//           productId: 1,
-//         },
-//       },
-
-//       // Group and sum
-//       {
-//         $group: {
-//           _id: null,
-//           totalAmount: { $sum: "$totalPerItem" },
-//           uniqueProducts: { $addToSet: "$productId" },
-//         },
-//       },
-
-//       // Project total amount and count of unique items
-//       {
-//         $project: {
-//           _id: 0,
-//           totalAmount: 1,
-//           uniqueItemCount: { $size: "$uniqueProducts" },
-//         },
-//       },
-//     ]);
-
-//     const totalAmount = result[0]?.totalAmount || 0;
-//     const uniqueItemCount = result[0]?.uniqueItemCount || 0;
-
-//     res.status(200).json({
-//       success: true,
-//       totalAmount,
-//       uniqueItemCount,
-//     });
-//   } catch (error) {
-//     next(
-//       error instanceof CustomError
-//         ? error
-//         : new CustomError(error.message, 500)
-//     );
-//   }
-// };
+  cart.items = [];
+  await cart.save({ session }); // ensure cart update is part of the transaction
+}
 
 
  // if needed for ObjectId validation
@@ -440,6 +349,7 @@ module.exports = {
   updateCartItem,
   removeCartItem,
   clearCart,
+  clearCartAfterPurchase,
   calculateCartTotalAmount
 };
 
