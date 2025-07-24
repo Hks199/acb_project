@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const {authMiddleware,roleMiddleware} = require("../middlewares/auth");
 const {
   addToCart,
   getCart,
@@ -10,12 +11,12 @@ const {
 } = require("../controllers/cartController");
 
 // No auth middleware used
-router.post("/addToCart", addToCart);
-router.get("/getCartbyId/:user_id", getCart);
-router.patch("/updateCartItem", updateCartItem);
-router.post("/removeCartItem", removeCartItem);
-router.delete("/clearCart", clearCart);
-router.post("/calculateCartTotalAmount/:userId",calculateCartTotalAmount);
+router.post("/addToCart",authMiddleware, addToCart);
+router.get("/getCartbyId/:user_id",authMiddleware, getCart);
+router.patch("/updateCartItem",authMiddleware, updateCartItem);
+router.post("/removeCartItem",authMiddleware, removeCartItem);
+router.delete("/clearCart",authMiddleware, clearCart);
+router.post("/calculateCartTotalAmount/:userId",authMiddleware, calculateCartTotalAmount);
 module.exports = router;
 
 // POST /cart/add

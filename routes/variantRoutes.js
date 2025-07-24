@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-
+const {authMiddleware,roleMiddleware} = require("../middlewares/auth");
 const {
   createVariantSet,
   getAllVariantSets,
@@ -11,18 +11,18 @@ const {
 } = require("../controllers/variantController");
 
 // 🔹 Create variant set
-router.post("/create-variant", createVariantSet);
+router.post("/create-variant",authMiddleware, createVariantSet);
 
 // 🔹 Get all variant sets
-router.post("/getAllVariant", getAllVariantSets);
+router.post("/getAllVariant",authMiddleware, getAllVariantSets);
 
 // 🔹 Update variant set by ID
-router.patch("/updateVariantSet/:id", updateVariantSet);
+router.patch("/updateVariantSet/:id",authMiddleware, updateVariantSet);
 
 // 🔹 Delete variant set by ID
-router.delete("/deleteVariantSet/:id", deleteVariantSet);
+router.delete("/deleteVariantSet/:id",authMiddleware, deleteVariantSet);
 
-router.get("/edit-variant/:id",editVariantSetByProductId)
+router.get("/edit-variant/:id",authMiddleware, editVariantSetByProductId)
 
 module.exports = router;
 

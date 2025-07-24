@@ -19,12 +19,12 @@ router.post("/register", registerUser);
 router.post("/verify-otp", verifyOtp);
 router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
-router.post("/logout-user",logoutUser)
-router.post("/update-password", updatePassword);
-router.post("/getuser-byid/:id",getUserById);
-router.patch("/update-user/:id",updateUser);
-router.post("/getuser-statistics",getUserStatistics)
-router.get("/getAllUsers", getAllUsers); // ?role=User or Admin
+router.post("/logout-user",authMiddleware,logoutUser)
+router.post("/update-password",authMiddleware, updatePassword);
+router.post("/getuser-byid/:id",authMiddleware,getUserById);
+router.patch("/update-user/:id",authMiddleware,updateUser);
+router.post("/getuser-statistics",authMiddleware,getUserStatistics)
+router.get("/getAllUsers",authMiddleware, getAllUsers); // ?role=User or Admin
 router.get("/getUserByAuthToken",authMiddleware,getUserByAuthToken);
 
 
