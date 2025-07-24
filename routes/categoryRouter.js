@@ -10,18 +10,18 @@ const {
 } = require("../controllers/categoryController");
 
 // CREATE
-router.post("/createCategory",authMiddleware, createCategory);
+router.post("/createCategory", createCategory);
 
 // READ ALL
-router.get("/getAllCategories",authMiddleware, getAllCategories);
+router.get("/getAllCategories", getAllCategories);
 
 // READ ONE
-router.get("/getCategoryById/:id",authMiddleware, getCategoryById);
+router.get("/getCategoryById/:id", getCategoryById);
 
 // UPDATE
-router.patch("/updateCategory/:id",authMiddleware, updateCategory);
+router.patch("/updateCategory/:id", updateCategory);
 
 // DELETE
-router.delete("/deleteCategory/:id",authMiddleware, deleteCategory);
+router.delete("/deleteCategory/:id", deleteCategory);
 
 module.exports = router;

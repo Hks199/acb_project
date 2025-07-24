@@ -13,12 +13,12 @@ const { createOrder,
     
  } = require("../controllers/orderController");
 
-router.post("/create",authMiddleware, createOrder);
-router.post("/verify",authMiddleware, verifyPayment);
-router.post('/getUserOrderedProducts',authMiddleware,getUserOrderedProducts);
-router.post('/listAllOrders',authMiddleware,listAllOrders);
-router.post('/getOrderDetails',authMiddleware,getOrderDetails);
-router.post('/generateOrderBill',authMiddleware,generateOrderBill);
+router.post("/create", createOrder);
+router.post("/verify", verifyPayment);
+router.post('/getUserOrderedProducts',getUserOrderedProducts);
+router.post('/listAllOrders',listAllOrders);
+router.post('/getOrderDetails',getOrderDetails);
+router.post('/generateOrderBill',generateOrderBill);
 
 // Customer: cancel/return
 // router.patch("/orders/:orderId/customer-action", handleCustomerOrderAction);

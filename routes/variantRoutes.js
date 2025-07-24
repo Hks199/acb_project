@@ -11,18 +11,18 @@ const {
 } = require("../controllers/variantController");
 
 // 🔹 Create variant set
-router.post("/create-variant",authMiddleware, createVariantSet);
+router.post("/create-variant", createVariantSet);
 
 // 🔹 Get all variant sets
-router.post("/getAllVariant",authMiddleware, getAllVariantSets);
+router.post("/getAllVariant", getAllVariantSets);
 
 // 🔹 Update variant set by ID
-router.patch("/updateVariantSet/:id",authMiddleware, updateVariantSet);
+router.patch("/updateVariantSet/:id", updateVariantSet);
 
 // 🔹 Delete variant set by ID
-router.delete("/deleteVariantSet/:id",authMiddleware, deleteVariantSet);
+router.delete("/deleteVariantSet/:id", deleteVariantSet);
 
-router.get("/edit-variant/:id",authMiddleware, editVariantSetByProductId)
+router.get("/edit-variant/:id",editVariantSetByProductId)
 
 module.exports = router;
 

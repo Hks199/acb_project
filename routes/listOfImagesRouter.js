@@ -8,9 +8,9 @@ const {
   deleteImage,
 } = require("../controllers/listOfImagesController");
 
-router.post("/create-image",authMiddleware, createImage);
-router.post("/getAll-image",authMiddleware, getAllImages);
-router.patch("/update-image/:id",authMiddleware, updateImage);
-router.delete("/delete-image/:id",authMiddleware, deleteImage);
+router.post("/create-image", createImage);
+router.post("/getAll-image", getAllImages);
+router.patch("/update-image/:id", updateImage);
+router.delete("/delete-image/:id", deleteImage);
 
 module.exports = router;

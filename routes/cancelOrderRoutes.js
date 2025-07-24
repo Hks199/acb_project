@@ -8,10 +8,10 @@ const {
  } = require("../controllers/cancelOrderController");
 
 
-router.patch("/cancelled-orders/:id/process",authMiddleware, markCancelledOrderAsProcessed);
+router.patch("/cancelled-orders/:id/process", markCancelledOrderAsProcessed);
 
-router.patch("/cancelled-orders-status-update",authMiddleware,updateRefundStatus);
+router.patch("/cancelled-orders-status-update",updateRefundStatus);
 
-router.post("/user-cancel-order",authMiddleware,getUserCancelledItems)
+router.post("/user-cancel-order",getUserCancelledItems)
 
 module.exports = router;
