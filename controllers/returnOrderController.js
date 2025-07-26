@@ -265,7 +265,7 @@ const markAsInspected = async (req, res, next) => {
 
   const getAllReturnedItems = async (req, res, next) => {
     try {
-      const {page = 1,limit = 10} = req.body;
+      const { page = 1, limit = 10 } = req.body;
       const skip = (page - 1) * limit;
   
       const pipeline = [
@@ -326,17 +326,14 @@ const markAsInspected = async (req, res, next) => {
             refundStatus: 1,
             refundedAt: 1,
             transaction_id: 1,
-            // returnReason: 1,
-            // isInspected: 1,
             quantity: 1,
             price_per_unit: 1,
             total_price: 1,
-            // returnImages: 1,
             product_id: 1,
             variant_id: 1,
             "product.product_name": 1,
             "product.imageUrls": 1,
-            "product.order_number" : 1,
+            "product.order_number": 1,
             variant_combination: 1,
           },
         },
@@ -349,7 +346,6 @@ const markAsInspected = async (req, res, next) => {
       const returnedItems = await ReturnedOrder.aggregate(pipeline);
   
       const totalResult = await ReturnedOrder.aggregate([
-        { $match: { user_id: new mongoose.Types.ObjectId(user_id) } },
         { $count: "total" },
       ]);
   
@@ -358,7 +354,7 @@ const markAsInspected = async (req, res, next) => {
       res.status(200).json({
         success: true,
         total,
-        currentPage: page,
+        currentPage: Number(page),
         totalPages: Math.ceil(total / limit),
         data: returnedItems,
       });
@@ -370,6 +366,7 @@ const markAsInspected = async (req, res, next) => {
       );
     }
   };
+  
  
 module.exports = {
  createReturnedOrder,
