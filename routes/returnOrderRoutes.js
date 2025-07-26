@@ -5,7 +5,8 @@ const {authMiddleware,roleMiddleware} = require("../middlewares/auth");
 const {
     markAsInspected,
     updateReturnStatus,
-    getUserReturnedItems
+    getUserReturnedItems,
+    getAllReturnedItems
     
 
 } = require("../controllers/returnOrderController");
@@ -13,4 +14,5 @@ const {
 router.patch("/return/:id/inspect", markAsInspected);
 router.patch("/return-status", updateReturnStatus);
 router.post("/user-return-item",getUserReturnedItems);
+router.post("/getAllReturnedItems",getAllReturnedItems);
 module.exports = router;

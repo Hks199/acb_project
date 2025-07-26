@@ -57,7 +57,7 @@ const getAllReviews = async (req, res, next) => {
 const getReviewsByProduct = async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const { page = 1, limit = 5 } = req.query; // Use query for pagination
+    const { page = 1, limit = 5 } = req.body; 
 
     const reviewData = await ProductReview.findOne({ productId })
       .populate("productId", "product_name")

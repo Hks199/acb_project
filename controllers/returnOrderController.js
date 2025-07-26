@@ -262,12 +262,121 @@ const markAsInspected = async (req, res, next) => {
     }
   };
   
+
+  const getAllReturnedItems = async (req, res, next) => {
+    try {
+      const {page = 1,limit = 10} = req.body;
+      const skip = (page - 1) * limit;
+  
+      const pipeline = [
+        // Lookup product
+        {
+          $lookup: {
+            from: "products",
+            localField: "product_id",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        {
+          $unwind: {
+            path: "$product",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+  
+        // Lookup variant (if exists)
+        {
+          $lookup: {
+            from: "productvariantsets",
+            localField: "variant_id",
+            foreignField: "combinations._id",
+            as: "variantSet",
+          },
+        },
+        {
+          $unwind: {
+            path: "$variantSet",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            variant_combination: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$variantSet.combinations",
+                    as: "comb",
+                    cond: { $eq: ["$$comb._id", "$variant_id"] },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+  
+        // Projection
+        {
+          $project: {
+            _id: 0,
+            orderId: 1,
+            returnedAt: 1,
+            refundStatus: 1,
+            refundedAt: 1,
+            transaction_id: 1,
+            // returnReason: 1,
+            // isInspected: 1,
+            quantity: 1,
+            price_per_unit: 1,
+            total_price: 1,
+            // returnImages: 1,
+            product_id: 1,
+            variant_id: 1,
+            "product.product_name": 1,
+            "product.imageUrls": 1,
+            "product.order_number" : 1,
+            variant_combination: 1,
+          },
+        },
+  
+        { $sort: { returnedAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ];
+  
+      const returnedItems = await ReturnedOrder.aggregate(pipeline);
+  
+      const totalResult = await ReturnedOrder.aggregate([
+        { $match: { user_id: new mongoose.Types.ObjectId(user_id) } },
+        { $count: "total" },
+      ]);
+  
+      const total = totalResult[0]?.total || 0;
+  
+      res.status(200).json({
+        success: true,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        data: returnedItems,
+      });
+    } catch (error) {
+      next(
+        error instanceof CustomError
+          ? error
+          : new CustomError("GetReturnedOrdersError", error.message, 500)
+      );
+    }
+  };
  
 module.exports = {
  createReturnedOrder,
  markAsInspected,
  updateReturnStatus,
- getUserReturnedItems
+ getUserReturnedItems,
+ getAllReturnedItems
 
 }
 
