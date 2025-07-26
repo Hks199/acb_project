@@ -300,7 +300,8 @@ const updateUser = async (req, res, next) => {
     const userId = req.user?._id || req.params.id; // Prefer auth ID, fallback to param
 
     const updateFields = {};
-    const allowedFields = ["first_name", "landmark", "gender", "state", "city", "mobile_number"];
+  
+    const allowedFields = ["first_name", "landmark", "gender", "state", "city", "pin_code", "mobile_number"];
 
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
