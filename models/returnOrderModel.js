@@ -43,7 +43,7 @@ const returnedOrderSchema = new mongoose.Schema(
     },
     refundStatus: {
       type: String,
-      enum: ["Pending", "Processed", "NotRequired"],
+      enum: ["Pending", "Accept", "Rejected"],
       default: "Pending",
     },
     refundedAt: {

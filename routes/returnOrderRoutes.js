@@ -6,7 +6,8 @@ const {
     markAsInspected,
     updateReturnStatus,
     getUserReturnedItems,
-    getAllReturnedItems
+    getAllReturnedItems,
+    getReturnedItemDetail
     
 
 } = require("../controllers/returnOrderController");
@@ -15,4 +16,5 @@ router.patch("/return/:id/inspect", markAsInspected);
 router.patch("/return-status", updateReturnStatus);
 router.post("/user-return-item",getUserReturnedItems);
 router.post("/getAllReturnedItems",getAllReturnedItems);
+router.get("/getReturnedItemDetail/:returnId",getReturnedItemDetail);
 module.exports = router;

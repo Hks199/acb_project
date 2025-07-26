@@ -367,13 +367,112 @@ const markAsInspected = async (req, res, next) => {
     }
   };
   
- 
+  const getReturnedItemDetail = async (req, res, next) => {
+    try {
+      const { returnId } = req.params;
+  
+      if (!mongoose.Types.ObjectId.isValid(returnId)) {
+        return next(new CustomError("InvalidId", "Invalid Return ID", 400));
+      }
+  
+      const pipeline = [
+        { $match: { _id: new mongoose.Types.ObjectId(returnId) } },
+  
+        // Lookup product
+        {
+          $lookup: {
+            from: "products",
+            localField: "product_id",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+  
+        // Lookup variant
+        {
+          $lookup: {
+            from: "productvariantsets",
+            localField: "variant_id",
+            foreignField: "combinations._id",
+            as: "variantSet",
+          },
+        },
+        { $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true } },
+  
+        // Extract specific variant
+        {
+          $addFields: {
+            variant_combination: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$variantSet.combinations",
+                    as: "comb",
+                    cond: { $eq: ["$$comb._id", "$variant_id"] },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+  
+        // Projection
+        {
+          $project: {
+            orderId: 1,
+            user_id: 1,
+            returnedAt: 1,
+            refundStatus: 1,
+            refundedAt: 1,
+            transaction_id: 1,
+            returnReason: 1,
+            isInspected: 1,
+            quantity: 1,
+            price_per_unit: 1,
+            total_price: 1,
+            returnImages: 1,
+            imageKeys: 1,
+            product_id: 1,
+            variant_id: 1,
+            "product.product_name": 1,
+            "product.imageUrls": 1,
+            "product.order_number": 1,
+            variant_combination: 1,
+          },
+        },
+      ];
+  
+      const result = await ReturnedOrder.aggregate(pipeline);
+  
+      if (!result || result.length === 0) {
+        return next(
+          new CustomError("NotFound", "Returned item not found", 404)
+        );
+      }
+  
+      res.status(200).json({
+        success: true,
+        data: result[0],
+      });
+    } catch (error) {
+      next(
+        error instanceof CustomError
+          ? error
+          : new CustomError("GetReturnDetailError", error.message, 500)
+      );
+    }
+  };
+
+
 module.exports = {
  createReturnedOrder,
  markAsInspected,
  updateReturnStatus,
  getUserReturnedItems,
- getAllReturnedItems
+ getAllReturnedItems,
+ getReturnedItemDetail
 
 }
 
