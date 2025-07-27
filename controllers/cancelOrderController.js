@@ -142,7 +142,7 @@ const updateRefundStatus = async (req, res, next) => {
       return next(new CustomError("BadRequest", "Refund status is required", 400));
     }
 
-    if (!["Pending", "Processed", "NotRequired"].includes(refundStatus)) {
+    if (!["Pending", "Paid",].includes(refundStatus)) {
       return next(new CustomError("InvalidStatus", "Invalid refund status value", 400));
     }
 
@@ -154,7 +154,7 @@ const updateRefundStatus = async (req, res, next) => {
 
     cancelledOrder.refundStatus = refundStatus;
 
-    if (refundStatus === "Processed") {
+    if (refundStatus === "Paid") {
       cancelledOrder.transaction_id = transaction_id;
     }
 

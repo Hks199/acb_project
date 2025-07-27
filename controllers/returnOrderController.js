@@ -115,7 +115,7 @@ const markAsInspected = async (req, res, next) => {
         return next(new CustomError("Return status is required", 400));
       }
   
-      if (!["Pending", "Processed", "NotRequired"].includes(refundStatus)) {
+      if (!["Pending", "Paid", "Accepted", "Rejected"].includes(refundStatus)) {
         return next(new CustomError("Invalid return status", 400));
       }
   
@@ -127,7 +127,7 @@ const markAsInspected = async (req, res, next) => {
   
       returnedOrder.refundStatus = refundStatus;
   
-      if (refundStatus === "Processed") {
+      if (refundStatus === "Paid") {
         returnedOrder.transaction_id = transaction_id;
       }
   

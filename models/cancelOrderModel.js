@@ -33,7 +33,7 @@ const cancelledOrderSchema = new mongoose.Schema(
     },
     refundStatus: {
       type: String,
-      enum: ["Pending", "Processed", "NotRequired"],
+      enum: ["Pending", "Paid"],
       default: "Pending",
     },
     totalRefundAmount: {
