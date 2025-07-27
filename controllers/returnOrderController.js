@@ -211,7 +211,7 @@ const markAsInspected = async (req, res, next) => {
         // Projection
         {
           $project: {
-            _id: 0,
+            _id: 1,
             orderId: 1,
             returnedAt: 1,
             refundStatus: 1,
@@ -320,7 +320,7 @@ const markAsInspected = async (req, res, next) => {
         // Projection
         {
           $project: {
-            _id: 0,
+            _id: 1,
             orderId: 1,
             returnedAt: 1,
             refundStatus: 1,
@@ -369,14 +369,14 @@ const markAsInspected = async (req, res, next) => {
   
   const getReturnedItemDetail = async (req, res, next) => {
     try {
-      const {user_id} = req.params;
+      const {returdId} = req.params;
   
-      if (!mongoose.Types.ObjectId.isValid(user_id)) {
+      if (!mongoose.Types.ObjectId.isValid(returdId)) {
         return next(new CustomError("InvalidId", "Invalid Return ID", 400));
       }
   
       const pipeline = [
-        { $match: {user_id : new mongoose.Types.ObjectId(user_id) } },
+        { $match: {_id : new mongoose.Types.ObjectId(returdId) } },
   
         // Lookup product
         {

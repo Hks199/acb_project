@@ -16,5 +16,5 @@ router.patch("/return/:id/inspect", markAsInspected);
 router.patch("/return-status", updateReturnStatus);
 router.post("/user-return-item",getUserReturnedItems);
 router.post("/getAllReturnedItems",getAllReturnedItems);
-router.get("/getReturnedItemDetail/:user_id",getReturnedItemDetail);
+router.get("/getReturnedItemDetail/:returdId",getReturnedItemDetail);
 module.exports = router;
