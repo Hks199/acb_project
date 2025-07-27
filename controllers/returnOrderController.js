@@ -369,14 +369,14 @@ const markAsInspected = async (req, res, next) => {
   
   const getReturnedItemDetail = async (req, res, next) => {
     try {
-      const { returnId } = req.params;
+      const {user_id} = req.params;
   
-      if (!mongoose.Types.ObjectId.isValid(returnId)) {
+      if (!mongoose.Types.ObjectId.isValid(user_id)) {
         return next(new CustomError("InvalidId", "Invalid Return ID", 400));
       }
   
       const pipeline = [
-        { $match: { _id: new mongoose.Types.ObjectId(returnId) } },
+        { $match: {user_id : new mongoose.Types.ObjectId(user_id) } },
   
         // Lookup product
         {

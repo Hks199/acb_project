@@ -203,7 +203,7 @@ const removeCartItem = async (req, res, next) => {
 
 const clearCart = async (req, res, next) => {
   try {
-    const { user_id } = req.body;
+    const { user_id } = req.params;
 
     if (!user_id) return next(new CustomError("BadRequest", "user_id required", 400));
 
