@@ -142,7 +142,7 @@ const updateRefundStatus = async (req, res, next) => {
       return next(new CustomError("BadRequest", "Refund status is required", 400));
     }
 
-    if (!["Pending", "Paid",].includes(refundStatus)) {
+    if (!["Pending", "Paid"].includes(refundStatus)) {
       return next(new CustomError("InvalidStatus", "Invalid refund status value", 400));
     }
 
@@ -292,18 +292,5 @@ module.exports = {
 
 
 
-// {
-//     "orderId": "665f2d9d65a5d64326d2a4bb",
-//     "user_id": "665e9b61c62f8037fc6ab499",
-//     "cancelledItems": [
-//       {
-//         "product_id": "665f2e3565a5d64326d2a4bc",
-//         "variant_id": "665f2e6f65a5d64326d2a4bd",
-//         "quantity": 1,
-//         "price_per_unit": 500,
-//         "total_price": 500
-//       }
-//     ],
-//     "cancellationReason": "Changed my mind",
-//   }
+
   
