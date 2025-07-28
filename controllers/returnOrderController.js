@@ -22,7 +22,6 @@ const createReturnedOrder = async (
       throw new CustomError("Missing required fields for returned order", 400);
     }
 
-    console.log(returnImages)
 
     const total_price = quantity * price_per_unit;
 
@@ -46,7 +45,6 @@ const createReturnedOrder = async (
         console.error("S3 upload failed:", err);
       }
     }
-    console.log(uploadedImageUrls)
     // Create the returned order document
     const returnedOrder = new ReturnedOrder({
       orderId,

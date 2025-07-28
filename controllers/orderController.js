@@ -226,7 +226,6 @@ const handleAdminOrderAction = async (req, res, next) => {
       } = req.body;
   
       const returnImages = req.files?.returnImages;
-      console.log(returnImages);
       // Validate ObjectIds
       if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(productId)) {
         throw new CustomError("InvalidObjectId", "Invalid orderId or productId", 400);
