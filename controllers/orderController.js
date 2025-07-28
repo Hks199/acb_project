@@ -226,6 +226,7 @@ const handleAdminOrderAction = async (req, res, next) => {
       } = req.body;
   
       const returnImages = req.files?.returnImages;
+      console.log(returnImages);
       // Validate ObjectIds
       if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(productId)) {
         throw new CustomError("InvalidObjectId", "Invalid orderId or productId", 400);
@@ -294,8 +295,8 @@ const handleAdminOrderAction = async (req, res, next) => {
       // Handle return
       if (status === "Returned") {
         const imageArray = Array.isArray(returnImages)
-          ? returnImages.map(img => img.name)
-          : returnImages ? [returnImages.name] : [];
+          ? returnImages.map(img => img)
+          : returnImages ? [returnImages] : [];
   
         await createReturnedOrder({
           orderId, 
