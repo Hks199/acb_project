@@ -100,7 +100,6 @@ const verifyPayment = async (req, res, next) => {
       {
         razorpayPaymentId: razorpay_payment_id,
         paymentStatus: "Paid",
-        orderStatus: "Confirmed",
       },
       { new: true }
     );
@@ -119,43 +118,6 @@ const verifyPayment = async (req, res, next) => {
   }
 };
 
-// const handleCustomerOrderAction = async (req, res, next) => {
-//     try {
-//       const { orderId } = req.params;
-//       const { user_id, action, reason } = req.body;
-  
-//       const order = await Order.findById(orderId);
-//       if (!order) return next(new CustomError("NotFound", "Order not found", 404));
-  
-//       if (order.user_id.toString() !== user_id)
-//         return next(new CustomError("Unauthorized", "You cannot modify this order", 403));
-  
-//       if (action === "cancel") {
-//         if (!["Pending", "Confirmed"].includes(order.orderStatus)) {
-//           return next(new CustomError("InvalidState", "Order cannot be cancelled", 400));
-//         }
-//         order.orderStatus = "Cancelled";
-//         order.cancelledAt = new Date();
-//         order.cancellationReason = reason || "No reason provided";
-//       }
-//       //  else if (action === "return") {
-//       //   if (order.orderStatus !== "Delivered") {
-//       //     return next(new CustomError("InvalidState", "Only delivered orders can be returned", 400));
-//       //   }
-//       //   order.orderStatus = "Returned";
-//       //   order.returnedAt = new Date();
-//       //   order.returnReason = reason || "No reason provided";
-//       // }
-//        else {
-//         return next(new CustomError("BadRequest", "Invalid customer action", 400));
-//       }
-  
-//       await order.save();
-//       res.status(200).json({ success: true, message: `Order ${action}ed`, order });
-//     } catch (error) {
-//       next(new CustomError("CustomerOrderActionError", error.message, 500));
-//     }
-//   };
 
 
 const handleAdminOrderAction = async (req, res, next) => {

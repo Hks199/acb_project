@@ -230,7 +230,7 @@ const getUserCancelledItems = async (req, res, next) => {
       // Final Projection
       {
         $project: {
-          _id: 0,
+          _id: 1,
           orderId: 1,
           cancelledAt: 1,
           refundStatus: 1,
@@ -244,6 +244,7 @@ const getUserCancelledItems = async (req, res, next) => {
           price_per_unit: "$cancelledItems.price_per_unit",
           total_price: "$cancelledItems.total_price",
           product_name: "$product.product_name",
+          customId : "$product.order_number",
           order_number : "$product.order_number",
           product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
           variant_combination: 1,
@@ -281,11 +282,122 @@ const getUserCancelledItems = async (req, res, next) => {
 };
 
 
+const getCanceledItemDetails = async (req, res, next) => {
+  try {
+    const { cancelId, productId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(cancelId)) {
+      return next(new CustomError("InvalidCancelId", "Invalid cancelId", 400));
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return next(new CustomError("InvalidProductId", "Invalid productId", 400));
+    }
+
+    const pipeline = [
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(cancelId),
+        },
+      },
+      { $unwind: "$cancelledItems" },
+      {
+        $match: {
+          "cancelledItems.product_id": new mongoose.Types.ObjectId(productId),
+        },
+      },
+
+      // Lookup Product Info
+      {
+        $lookup: {
+          from: "products",
+          localField: "cancelledItems.product_id",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+
+      // Lookup Variant Info (if exists)
+      {
+        $lookup: {
+          from: "productvariantsets",
+          localField: "cancelledItems.variant_combination_id",
+          foreignField: "combinations._id",
+          as: "variantSet",
+        },
+      },
+      { $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          variant_combination: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$variantSet.combinations",
+                  as: "comb",
+                  cond: {
+                    $eq: ["$$comb._id", "$cancelledItems.variant_combination_id"],
+                  },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      },
+
+      // Final Projection
+      {
+        $project: {
+          _id: 1,
+          orderId: 1,
+          cancelledAt: 1,
+          refundStatus: 1,
+          totalRefundAmount: 1,
+          transaction_id: 1,
+          cancellationReason: 1,
+          isProcessed: 1,
+          product_id: "$cancelledItems.product_id",
+          variant_combination_id: "$cancelledItems.variant_combination_id",
+          quantity: "$cancelledItems.quantity",
+          price_per_unit: "$cancelledItems.price_per_unit",
+          total_price: "$cancelledItems.total_price",
+          product_name: "$product.product_name",
+          order_number: "$product.order_number",
+          customId : "$product.order_number",
+          product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
+          variant_combination: 1,
+        },
+      },
+    ];
+
+    const cancelledItems = await CancelledOrder.aggregate(pipeline);
+
+    if (!cancelledItems.length) {
+      return next(new CustomError("CancelledItemNotFound", "No matching cancelled item found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: cancelledItems[0],
+    });
+
+  } catch (error) {
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError("GetCancelledOrdersError", error.message, 500)
+    );
+  }
+};
+
 module.exports = {
     createOrUpdateCancelledOrder,  
     markCancelledOrderAsProcessed,
     updateRefundStatus,
-    getUserCancelledItems
+    getUserCancelledItems,
+    getCanceledItemDetails
 };
 
 
