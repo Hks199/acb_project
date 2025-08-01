@@ -144,10 +144,79 @@ const deleteVendor = async (req, res, next) => {
   }
 };
 
+
+const getVendorWiseProducts = async (req, res, next) => {
+  try {
+    let { page = 1, limit = 10 } = req.body;
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const skip = (page - 1) * limit;
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "vendor_id",
+          as: "products"
+        }
+      },
+      {
+        $project: {
+          vendor_name: 1,
+          email: 1,
+          art_type: 1,
+          description: 1,
+          imageUrls: 1,
+          products: {
+            $map: {
+              input: "$products",
+              as: "prod",
+              in: {
+                productId: "$$prod.productId",
+                product_name: "$$prod.product_name",
+                price: "$$prod.price",
+                stock: "$$prod.stock",
+                imageUrls: "$$prod.imageUrls",
+                isActive: "$$prod.isActive"
+              }
+            }
+          }
+        }
+      },
+      {
+        $skip: skip
+      },
+      {
+        $limit: limit
+      }
+    ];
+
+    const data = await Vendor.aggregate(pipeline);
+
+    const total = await Vendor.countDocuments();
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      success: true,
+      page,
+      total,
+      totalPages,
+      pageSize: data.length,
+      data
+    });
+  } catch (error) {
+    next(new CustomError("GetVendorWiseInventoryError", error.message, 500));
+  }
+};
+
+
 module.exports = {
     createVendor,
     getAllVendors,
     getVendorById,
     updateVendor,
-    deleteVendor
+    deleteVendor,
+    getVendorWiseProducts
 }
