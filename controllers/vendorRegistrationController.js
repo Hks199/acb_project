@@ -174,6 +174,7 @@ const getVendorWiseProducts = async (req, res, next) => {
               input: "$products",
               as: "prod",
               in: {
+                _id : "$$prod._id",
                 productId: "$$prod.productId",
                 product_name: "$$prod.product_name",
                 price: "$$prod.price",
