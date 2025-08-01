@@ -150,7 +150,6 @@ const getVendorWiseProducts = async (req, res, next) => {
     let { page = 1, limit = 10 } = req.body;
     page = parseInt(page);
     limit = parseInt(limit);
-
     const skip = (page - 1) * limit;
 
     const pipeline = [
@@ -163,25 +162,43 @@ const getVendorWiseProducts = async (req, res, next) => {
         }
       },
       {
-        $project: {
-          vendor_name: 1,
-          email: 1,
-          art_type: 1,
-          description: 1,
-          imageUrls: 1,
+        $unwind: {
+          path: "$products",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "products.category_id",
+          foreignField: "_id",
+          as: "products.category"
+        }
+      },
+      {
+        $unwind: {
+          path: "$products.category",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          vendor_name: { $first: "$vendor_name" },
+          email: { $first: "$email" },
+          art_type: { $first: "$art_type" },
+          description: { $first: "$description" },
+          imageUrls: { $first: "$imageUrls" },
           products: {
-            $map: {
-              input: "$products",
-              as: "prod",
-              in: {
-                _id : "$$prod._id",
-                productId: "$$prod.productId",
-                product_name: "$$prod.product_name",
-                price: "$$prod.price",
-                stock: "$$prod.stock",
-                imageUrls: "$$prod.imageUrls",
-                isActive: "$$prod.isActive"
-              }
+            $push: {
+              _id : "$products._id",
+              productId: "$products.productId",
+              product_name: "$products.product_name",
+              price: "$products.price",
+              stock: "$products.stock",
+              imageUrls: "$products.imageUrls",
+              isActive: "$products.isActive",
+              category: "$products.category.category" // Only category name
             }
           }
         }
@@ -195,7 +212,6 @@ const getVendorWiseProducts = async (req, res, next) => {
     ];
 
     const data = await Vendor.aggregate(pipeline);
-
     const total = await Vendor.countDocuments();
     const totalPages = Math.ceil(total / limit);
 
