@@ -78,12 +78,22 @@ const createVendor = async (req, res, next) => {
 // ✅ Get All Vendors (with pagination)
 const getAllVendors = async (req, res, next) => {
   try {
-    let {page = 1,limit = 10} = req.body;
+    let { page = 1, limit = 10 } = req.body;
+    page = parseInt(page);
+    limit = parseInt(limit);
     const skip = (page - 1) * limit;
 
-    const vendors = await Vendor.find().skip(skip).limit(limit);
+    const vendors = await Vendor.find({}, {
+      vendor_name: 1,
+      art_type: 1,
+      description: 1,
+      imageUrls: 1,
+    })
+      .skip(skip)
+      .limit(limit);
+
     const total = await Vendor.countDocuments();
-    let totalPages = Math.ceil(total / limit)
+    const totalPages = Math.ceil(total / limit);
 
     res.status(200).json({
       success: true,
@@ -91,12 +101,18 @@ const getAllVendors = async (req, res, next) => {
       total,
       totalPages,
       pageSize: vendors.length,
-      data: vendors,
+      data: vendors.map(v => ({
+        vendor_name: v.vendor_name,
+        art_type: v.art_type,
+        description: v.description,
+        images: v.imageUrls || [],
+      })),
     });
   } catch (error) {
     next(new CustomError("FetchVendorsError", error.message, 500));
   }
 };
+
 
 // ✅ Get Single Vendor by ID
 const getVendorById = async (req, res, next) => {
