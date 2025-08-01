@@ -1,15 +1,79 @@
 const Vendor = require("../models/vendorRegistrationModel.js");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
-
+const {s3UploadHandler} = require("../helpers/s3BucketUploadHandler");
 // ✅ Create Vendor
+
 const createVendor = async (req, res, next) => {
   try {
-    const vendor = await Vendor.create(req.body);
-    res.status(201).json({ success: true, message: "Vendor created", data: vendor });
+    const {
+      vendor_name,
+      art_type,
+      description,
+      email,
+      mobile_number,
+      gender,
+      landmark,
+      state,
+      city,
+      country,
+    } = req.body;
+
+    // Check for existing vendor
+    const existing = await Vendor.findOne({
+      $or: [{ email }, { mobile_number }],
+    });
+    if (existing) {
+      return next(
+        new CustomError("DuplicateVendor", "Vendor with this email or mobile already exists", 409)
+      );
+    }
+
+        const imageArray = Array.isArray(req.files.images)
+          ? req.files.images
+          : [req.files.images]
+
+        const uploadedImageUrls = [];
+        const uploadedImageKeys = [];
+    
+        for (const image of imageArray) {
+          try {
+            const { fileKey, publicUrl } = await s3UploadHandler(image, "returnImage");
+            uploadedImageUrls.push(publicUrl);
+            uploadedImageKeys.push(fileKey);
+          } catch (err) {
+            console.error("S3 upload failed:", err);
+          }
+      }
+
+    // Create Vendor
+    const newVendor = await Vendor.create({
+      vendor_name,
+      art_type,
+      description,
+      email,
+      mobile_number,
+      gender,
+      landmark,
+      state,
+      city,
+      country,
+      imageUrls : uploadedImageUrls,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Vendor created successfully",
+      data: newVendor,
+    });
   } catch (error) {
-    next(new CustomError("CreateVendorError", error.message, 400));
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError("CreateVendorError", error.message, 400)
+    );
   }
 };
+
 
 // ✅ Get All Vendors (with pagination)
 const getAllVendors = async (req, res, next) => {
