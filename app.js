@@ -13,7 +13,7 @@ const app = express();
 
 const { FIRST_PROJECT_LINK, SECOND_PROJECT_LINK } = process.env;
 
-const allowedOrigins = [FIRST_PROJECT_LINK, SECOND_PROJECT_LINK, 'http://localhost:5174', 'http://localhost:5173','https://d3vee6vfc763ku.cloudfront.net'];
+const allowedOrigins = [FIRST_PROJECT_LINK, SECOND_PROJECT_LINK, 'http://localhost:5174', 'http://localhost:5173','https://d3vee6vfc763ku.cloudfront.net',"https://d1rk7wgj9yvpyp.cloudfront.net"];
 
 const corsOptions = {
   origin: function (origin, callback) {
