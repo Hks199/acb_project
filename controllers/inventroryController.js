@@ -243,7 +243,7 @@ const getProductsSortedByReviews = async (req, res, next) => {
 
     const result = await Product.aggregate([
       {
-        $sort: { review_count: -1 }
+        $sort: { createdAt: -1 }
       },
       {
         $facet: {
