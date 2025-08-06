@@ -236,49 +236,64 @@ const searchProductsByName = async (req, res, next) => {
 
 const getProductsSortedByReviews = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10 } = req.body;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    let { page = 1, limit = 10 } = req.body;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const skip = (page - 1) * limit;
 
-    const products = await Product.aggregate([
+    const result = await Product.aggregate([
       {
-        $sort: { review_count: -1 } // Sort by review_count in descending order
+        $sort: { review_count: -1 }
       },
       {
-        $skip: skip
-      },
-      {
-        $limit: parseInt(limit)
-      },
-      {
-        $project: {
-          _id: 1,
-          productId : 1,
-          product_name: 1,
-          price: 1,
-          stock: 1,
-          imageUrls: 1,
-          review_count: 1,
-          avg_rating: 1,
-          isActive: 1,
-          category_id: 1,
-          vendor_id: 1
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 1,
+                productId: 1,
+                product_name: 1,
+                price: 1,
+                stock: 1,
+                imageUrls: 1,
+                review_count: 1,
+                avg_rating: 1,
+                isActive: 1,
+                category_id: 1,
+                vendor_id: 1
+              }
+            }
+          ],
+          totalCount: [
+            { $count: "count" }
+          ]
         }
       }
     ]);
 
-    const totalCount = await Product.countDocuments();
+    const products = result[0].data;
+    const totalCount = result[0].totalCount[0]?.count || 0;
+    const totalPages = Math.ceil(totalCount / limit);
 
     res.status(200).json({
       success: true,
       totalProducts: totalCount,
-      totalPages: Math.ceil(totalCount / limit),
-      currentPage: parseInt(page),
+      totalPages,
+      currentPage: page,
       products
     });
+
   } catch (error) {
-    next(error instanceof CustomError ? error : new CustomError(error.message, 500));
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError("GetProductsSortedByReviewsError", error.message, 500)
+    );
   }
 };
+
 
 
 
