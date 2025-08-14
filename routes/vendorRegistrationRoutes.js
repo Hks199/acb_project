@@ -13,7 +13,7 @@ const {
 router.post("/create-vendor", createVendor);
 router.post("/getAll-vendor", getAllVendors);
 router.get("/getVendor-byId/:id", getVendorById);
-router.patch("/update-vendor/:id", updateVendor);
+router.patch("/update-vendor/:vendorId", updateVendor);
 router.delete("/delete-vendor/:id", deleteVendor);
 router.post('/getVendorWiseProducts',getVendorWiseProducts);
 

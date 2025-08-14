@@ -25,6 +25,13 @@ const vendorSchema = new mongoose.Schema(
         message: "All image URLs must be strings.",
       },
     },
+    imageKeys : {
+      type: [String],
+      validate: {
+        validator: (arr) => arr.every((url) => typeof url === "string"),
+        message: "All image keys must be strings.",
+      },
+    },
     email: {
       type: String,
       required: true,

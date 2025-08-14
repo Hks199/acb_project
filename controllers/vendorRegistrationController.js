@@ -1,6 +1,6 @@
 const Vendor = require("../models/vendorRegistrationModel.js");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
-const {s3UploadHandler} = require("../helpers/s3BucketUploadHandler");
+const {s3UploadHandler,s3ReplaceHandler} = require("../helpers/s3BucketUploadHandler");
 // ✅ Create Vendor
 
 const createVendor = async (req, res, next) => {
@@ -37,7 +37,7 @@ const createVendor = async (req, res, next) => {
     
         for (const image of imageArray) {
           try {
-            const { fileKey, publicUrl } = await s3UploadHandler(image, "returnImage");
+            const { fileKey, publicUrl } = await s3UploadHandler(image, "vendorImage");
             uploadedImageUrls.push(publicUrl);
             uploadedImageKeys.push(fileKey);
           } catch (err) {
@@ -58,6 +58,7 @@ const createVendor = async (req, res, next) => {
       city,
       country,
       imageUrls : uploadedImageUrls,
+      imageKeys: uploadedImageKeys
     });
 
     res.status(201).json({
@@ -73,6 +74,66 @@ const createVendor = async (req, res, next) => {
     );
   }
 };
+
+
+const updateVendor = async (req, res, next) => {
+  try {
+    const { vendorId } = req.params;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return next(new CustomError("VendorNotFound", "Vendor not found", 404));
+    }
+
+    let updatedImageUrls = [...vendor.imageUrls];
+    let updatedImageKeys = [...vendor.imageKeys];
+
+    // If images are sent, replace existing
+    if (req.files?.images) {
+      const imageArray = Array.isArray(req.files.images)
+        ? req.files.images
+        : [req.files.images];
+
+      for (let i = 0; i < imageArray.length; i++) {
+        // If an old key exists at this index, replace it
+        if (updatedImageKeys[i]) {
+          const { publicUrl } = await s3ReplaceHandler(imageArray[i], updatedImageKeys[i]);
+          updatedImageUrls[i] = publicUrl;
+        } else {
+          // If no old image exists at this index, upload new
+          const { fileKey, publicUrl } = await s3UploadHandler(imageArray[i], "vendorImage");
+          updatedImageKeys.push(fileKey);
+          updatedImageUrls.push(publicUrl);
+        }
+      }
+    }
+
+    // Update vendor
+    const updatedVendor = await Vendor.findByIdAndUpdate(
+      vendorId,
+      {
+        ...req.body,
+        imageUrls: updatedImageUrls,
+        imageKeys: updatedImageKeys
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Vendor updated successfully",
+      data: updatedVendor
+    });
+  } catch (error) {
+    next(
+      error instanceof CustomError
+        ? error
+        : new CustomError("UpdateVendorError", error.message, 400)
+    );
+  }
+};
+
+
 
 
 // ✅ Get All Vendors (with pagination)
@@ -112,23 +173,6 @@ const getVendorById = async (req, res, next) => {
   }
 };
 
-// ✅ Update Vendor
-const updateVendor = async (req, res, next) => {
-  try {
-    const vendor = await Vendor.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!vendor) {
-      return next(new CustomError("VendorNotFound", "Vendor not found", 404));
-    }
-
-    res.status(200).json({ success: true, message: "Vendor updated"});
-  } catch (error) {
-    next(new CustomError("UpdateVendorError", error.message, 400));
-  }
-};
 
 // ✅ Delete Vendor
 const deleteVendor = async (req, res, next) => {
