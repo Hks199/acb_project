@@ -262,7 +262,8 @@ const getProductsSortedByReviews = async (req, res, next) => {
                 avg_rating: 1,
                 isActive: 1,
                 category_id: 1,
-                vendor_id: 1
+                vendor_id: 1,
+                description : 1
               }
             }
           ],
