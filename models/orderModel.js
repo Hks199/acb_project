@@ -103,7 +103,6 @@ const orderSchema = new mongoose.Schema(
     },
     razorpayPaymentId: {
       type : String,
-      unique : true
     }, 
     shippedAt: {
       type: Date,
