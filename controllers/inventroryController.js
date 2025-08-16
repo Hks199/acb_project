@@ -118,20 +118,29 @@ const deleteProduct = async (req, res, next) => {
 const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
     // Check if product exists
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
       });
     }
 
-    // Parse description if it's a stringified JSON
+    // Safely handle description
     if (updateData.description && typeof updateData.description === "string") {
-      updateData.description = JSON.parse(updateData.description);
+      try {
+        // Try parsing only if it's valid JSON
+        const parsed = JSON.parse(updateData.description);
+        if (typeof parsed === "object") {
+          updateData.description = parsed;
+        }
+      } catch (e) {
+        // If it's plain text (not JSON), leave it as-is
+        updateData.description = updateData.description.trim();
+      }
     }
 
     // Update product
@@ -145,12 +154,12 @@ const updateProduct = async (req, res, next) => {
       message: "Product updated successfully",
       data: updatedProduct,
     });
-
   } catch (err) {
     console.error("Update Product Error:", err);
     next(err);
   }
 };
+
 
 
 const updateProductsStock = async (orderedItems, session) => {
