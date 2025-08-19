@@ -185,7 +185,7 @@ const updateVariantsStock = async (orderedItems, session) => {
     const { product_id, variant_combination_id, quantity } = item;
 
     if (!product_id || !variant_combination_id || typeof quantity !== "number") {
-      console.warn("Invalid ordered item detected:", item);
+      // console.warn("Invalid ordered item detected:", item);
       continue;
     }
 

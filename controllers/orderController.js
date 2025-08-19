@@ -12,17 +12,37 @@ const {generateOrderId} = require("../helpers/generateOrderId.js");
 const createOrder = async (req, res, next) => {
   const session = await mongoose.startSession();
   try {
+    // Validate orderedItems before starting transaction
+    const { orderedItems } = req.body;
+    if (!Array.isArray(orderedItems) || orderedItems.length === 0) {
+      throw new CustomError("No ordered items provided", 400);
+    }
+      for (const item of orderedItems) {
+      if (
+        !item.product_id ||
+        !mongoose.Types.ObjectId.isValid(item.product_id) ||
+        typeof item.quantity !== "number" ||
+        item.quantity <= 0
+      ) {
+        throw new CustomError(`Invalid ordered item detected: ${JSON.stringify(item)}`, 400);
+      }
+      // Check if product exists
+      const productExists = await mongoose.model("Product").exists({ _id: item.product_id });
+      if (!productExists) {
+        throw new CustomError(`Product not found: ${item.product_id}`, 404);
+      }
+    }
+
     session.startTransaction();
     const {
       user_id,
-      orderedItems,
       shippingAddress,
       paymentMethod,
       subtotal,
       tax = 0,
       deliveryCharge = 0,
     } = req.body;
-    let  order_number = await generateOrderId();
+    let order_number = await generateOrderId();
     const totalAmount = subtotal + tax + deliveryCharge;
 
     // Step 1: Create Razorpay order
@@ -50,7 +70,7 @@ const createOrder = async (req, res, next) => {
           currency: "INR"
         },
       ],
-      { session } 
+      { session }
     );
 
     // Step 3: Update stocks using the same session

@@ -163,18 +163,30 @@ const updateProduct = async (req, res, next) => {
 
 
 const updateProductsStock = async (orderedItems, session) => {
+  if (!Array.isArray(orderedItems) || orderedItems.length === 0) {
+    throw new CustomError("No ordered items provided", 400);
+  }
+
   for (const item of orderedItems) {
+    if (
+      !item.product_id ||
+      !mongoose.Types.ObjectId.isValid(item.product_id) ||
+      typeof item.quantity !== "number" ||
+      item.quantity <= 0
+    ) {
+      throw new CustomError(`Invalid item data: ${JSON.stringify(item)}`, 400);
+    }
+
     const product = await Product.findById(item.product_id).session(session);
     if (!product) {
       throw new CustomError(`Product not found: ${item.product_id}`, 404);
     }
 
-    const updatedStock = product.stock - item.quantity;
-    if (updatedStock < 0) {
-      throw new CustomError(`Insufficient product stock: ${item.product_id}`, 400);
+    if (product.stock < item.quantity) {
+      throw new CustomError(`Insufficient stock for product: ${item.product_id}`, 400);
     }
 
-    product.stock = updatedStock;
+    product.stock -= item.quantity;
     await product.save({ session });
   }
 };
