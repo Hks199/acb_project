@@ -13,6 +13,7 @@ const {generateOrderId} = require("../helpers/generateOrderId.js");
 const createOrder = async (req, res, next) => {
   const session = await mongoose.startSession();
   try {
+    session.startTransaction();
     // Validate orderedItems before starting transaction
     const { orderedItems } = req.body;
     if (!Array.isArray(orderedItems) || orderedItems.length === 0) {
@@ -32,7 +33,7 @@ const createOrder = async (req, res, next) => {
         if (!productExists) {
         throw new CustomError(`Product not found: ${item.product_id}`, 404);
       }
-      const product = await Product.findById(item.product_id).session(session);
+      const product = await Product.findById(item.product_id);
         if (!product) {
         throw new CustomError(`Product not found: ${item.product_id}`, 404);
       }
