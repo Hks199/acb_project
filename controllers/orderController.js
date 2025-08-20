@@ -11,9 +11,7 @@ const mongoose = require("mongoose");
 const {generateOrderId} = require("../helpers/generateOrderId.js");
 
 const createOrder = async (req, res, next) => {
-  const session = await mongoose.startSession();
   try {
-    session.startTransaction();
     // Validate orderedItems before starting transaction
     const { orderedItems } = req.body;
     if (!Array.isArray(orderedItems) || orderedItems.length === 0) {
@@ -44,7 +42,6 @@ const createOrder = async (req, res, next) => {
       
     }
 
-    session.startTransaction();
     const {
       user_id,
       shippingAddress,
@@ -81,11 +78,7 @@ const createOrder = async (req, res, next) => {
           currency: "INR"
         },
       ],
-      { session }
     );
-
-    await session.commitTransaction();
-    session.endSession();
 
     res.status(201).json({
       success: true,
@@ -97,8 +90,6 @@ const createOrder = async (req, res, next) => {
       },
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     next(
       error instanceof CustomError
         ? error
