@@ -73,16 +73,12 @@ const createOrder = async (req, res, next) => {
       { session }
     );
 
-    // Step 3: Update stocks using the same session
-    await updateProductsStock(orderedItems, session);
-    await updateVariantsStock(orderedItems, session);
-
     await session.commitTransaction();
     session.endSession();
 
     res.status(201).json({
       success: true,
-      order: order[0], // created via array
+      // order: order[0], // created via array
       razorpayOrder: {
         id: razorpayOrder.id,
         amount: razorpayOrder.amount/100,
@@ -101,32 +97,89 @@ const createOrder = async (req, res, next) => {
 };
 
 
+// const verifyPayment = async (req, res, next) => {
+//   try {
+//     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+
+//     const generated_signature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+//       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+//       .digest("hex");
+
+//     if (generated_signature !== razorpay_signature) {
+//       return next(new CustomError("SignatureMismatch", "Invalid payment signature", 400));
+//     }
+
+//     // Update order status in DB
+//     const order = await Order.findOneAndUpdate(
+//       { razorpayOrderId: razorpay_order_id },
+//       {
+//         razorpayPaymentId: razorpay_payment_id,
+//         paymentStatus: "Paid",
+//       },
+//       { new: true }
+//     );
+
+//     if (!order) {
+//       return next(new CustomError("OrderNotFound", "Order not found for verification", 404));
+//     }
+
+//       // Step 3: Update stocks using the same session
+//       await updateProductsStock(order.orderedItems, session);
+//       await updateVariantsStock(order.orderedItems, session);
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Payment verified successfully",
+//       order,
+//     });
+//   } catch (error) {
+//     next(new CustomError("PaymentVerificationError", error.message, 500));
+//   }
+// };
+
 const verifyPayment = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
 
+    // Step 1: Verify signature
     const generated_signature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
     if (generated_signature !== razorpay_signature) {
+      await session.abortTransaction();
+      session.endSession();
       return next(new CustomError("SignatureMismatch", "Invalid payment signature", 400));
     }
 
-    // Update order status in DB
+    // Step 2: Update order status
     const order = await Order.findOneAndUpdate(
       { razorpayOrderId: razorpay_order_id },
       {
         razorpayPaymentId: razorpay_payment_id,
         paymentStatus: "Paid",
       },
-      { new: true }
+      { new: true, session }
     );
 
     if (!order) {
+      await session.abortTransaction();
+      session.endSession();
       return next(new CustomError("OrderNotFound", "Order not found for verification", 404));
     }
+
+    // Step 3: Update stock within the same transaction
+    await updateProductsStock(order.orderedItems, session);
+    await updateVariantsStock(order.orderedItems, session);
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       success: true,
@@ -134,11 +187,11 @@ const verifyPayment = async (req, res, next) => {
       order,
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     next(new CustomError("PaymentVerificationError", error.message, 500));
   }
 };
-
-
 
 const handleAdminOrderAction = async (req, res, next) => {
   try {
@@ -325,6 +378,7 @@ const handleAdminOrderAction = async (req, res, next) => {
           $match: {
             user_id: new mongoose.Types.ObjectId(user_id),
             isDeleted: false,
+            paymentStatus: "Paid",
           },
         },
         { $unwind: "$orderedItems" },
@@ -439,8 +493,12 @@ const handleAdminOrderAction = async (req, res, next) => {
       const skip = (page - 1) * limit;
   
       const pipeline = [
-        { $match: { isDeleted: false } },
-  
+        { 
+          $match: { 
+          isDeleted: false,
+          paymentStatus: "Paid",
+          }
+        },
         // Unwind orderedItems to flatten
         { $unwind: "$orderedItems" },
   
