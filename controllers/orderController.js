@@ -140,9 +140,10 @@ const createOrder = async (req, res, next) => {
 
 const verifyPayment = async (req, res, next) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
-
+  
   try {
+    session.startTransaction();
+    
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
 
     // Step 1: Verify signature
@@ -162,7 +163,7 @@ const verifyPayment = async (req, res, next) => {
       { razorpayOrderId: razorpay_order_id },
       {
         razorpayPaymentId: razorpay_payment_id,
-        paymentStatus: "Paid",
+        paymentStatus: "Paid"
       },
       { new: true, session }
     );
