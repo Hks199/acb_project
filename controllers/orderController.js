@@ -1,5 +1,6 @@
 const Order = require("../models/orderModel");
 const razorpay = require("../helpers/razorpayInstance");
+const Product = require("../models/inventoryModel");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
 const crypto = require("crypto");
 const {createOrUpdateCancelledOrder} = require("./cancelOrderController.js")
@@ -28,9 +29,18 @@ const createOrder = async (req, res, next) => {
       }
       // Check if product exists
       const productExists = await mongoose.model("Product").exists({ _id: item.product_id });
-      if (!productExists) {
+        if (!productExists) {
         throw new CustomError(`Product not found: ${item.product_id}`, 404);
       }
+      const product = await Product.findById(item.product_id).session(session);
+        if (!product) {
+        throw new CustomError(`Product not found: ${item.product_id}`, 404);
+      }
+    
+      if(product.stock < item.quantity) {
+          throw new CustomError(`Insufficient stock for product: ${item.product_id}`, 400);
+      }
+      
     }
 
     session.startTransaction();
