@@ -47,8 +47,8 @@ const sendOTP = async (otp, email, name) => {
         <br>
         <p>Thank you for your cooperation.</p>
         <p>Best regards,</p>
-        <p><strong>Team XYZ</strong></p>
-        <p><a href="https://www.xyz.com">www.xyz.com</a></p>
+        <p><strong>Team ArtAndCraftFromBharat</strong></p>
+        <p><a href="https://www.artandcraftfrombharat.com/">www.artandcraftfrombharat.com</a></p>
       </div>
     `;
 
