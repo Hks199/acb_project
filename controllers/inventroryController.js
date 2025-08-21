@@ -171,8 +171,7 @@ const updateProductsStock = async (orderedItems, session) => {
     if (
       !item.product_id ||
       !mongoose.Types.ObjectId.isValid(item.product_id) ||
-      typeof item.quantity !== "number" ||
-      item.quantity <= 0
+      typeof item.quantity !== "number"
     ) {
       throw new CustomError(`Invalid item data: ${JSON.stringify(item)}`, 400);
     }
