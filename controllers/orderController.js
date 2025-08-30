@@ -431,6 +431,7 @@ const handleAdminOrderAction = async (req, res, next) => {
           $project: {
             _id: 0,
             order_id: "$_id",
+            order_number : 1,
             product_id: "$orderedItems.product_id",
             product_name: "$product.product_name",
             product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
@@ -562,8 +563,8 @@ const handleAdminOrderAction = async (req, res, next) => {
         {
           $project: {
             order_id: "$_id",
-            user_id: 1,
             order_number : 1,
+            user_id: 1,
             name : "$user.first_name",
             // product: {
               // _id: "$product._id",
@@ -761,6 +762,7 @@ const handleAdminOrderAction = async (req, res, next) => {
       // Format bill
       const bill = {
         invoiceNumber: `INV-${order.order_number.split("-")[1]}`,
+        orderNumber: order.order_number,
         orderDate: new Date(order.createdAt).toLocaleString(),
         customer: {
           name: order.user_id.name,
