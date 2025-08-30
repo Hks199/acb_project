@@ -4,6 +4,7 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+  
 
 jobs:
   build:
@@ -47,7 +48,7 @@ jobs:
         RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
         EOF
         echo ".env file created"
-
+        
     - name: 📈 Export NVM path (if needed)
       run: echo "PATH=$PATH:/home/ubuntu/.nvm/versions/node/v22.14.0/bin" >> $GITHUB_ENV
 
