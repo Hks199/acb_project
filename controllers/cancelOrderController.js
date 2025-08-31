@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const createOrUpdateCancelledOrder = async (
   {
     orderId,
+    order_number,
     user_id,
     cancelledItems,
     cancellationReason,
@@ -66,6 +67,7 @@ const createOrUpdateCancelledOrder = async (
     // Build new cancelled order
     const newCancelledOrder = new CancelledOrder({
       orderId,
+      order_number,
       user_id,
       cancelledItems,
       cancellationReason,
@@ -232,6 +234,7 @@ const getUserCancelledItems = async (req, res, next) => {
         $project: {
           _id: 1,
           orderId: 1,
+          order_number : 1,
           cancelledAt: 1,
           refundStatus: 1,
           totalRefundAmount: 1,
@@ -352,6 +355,7 @@ const getCanceledItemDetails = async (req, res, next) => {
         $project: {
           _id: 1,
           orderId: 1,
+          order_number : 1,
           cancelledAt: 1,
           refundStatus: 1,
           totalRefundAmount: 1,
@@ -448,6 +452,7 @@ const getAllCancelledItems = async (req, res, next) => {
           _id: 1,
           user_id: 1,
           orderId: 1,
+          order_number : 1,
           cancelledAt: 1,
           refundStatus: 1,
           totalRefundAmount: 1,

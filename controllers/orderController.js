@@ -270,6 +270,7 @@ const handleAdminOrderAction = async (req, res, next) => {
       }
   
       const order = await Order.findById(orderId).session(session);
+      let order_number = order ? order.order_number : null;
       if (!order) {
         throw new CustomError("NotFound", "Order not found", 404);
       }
@@ -321,6 +322,7 @@ const handleAdminOrderAction = async (req, res, next) => {
         await createOrUpdateCancelledOrder(
           {
             orderId,
+            order_number,
             user_id,
             cancelledItems,
             cancellationReason,
@@ -337,6 +339,7 @@ const handleAdminOrderAction = async (req, res, next) => {
   
         await createReturnedOrder({
           orderId, 
+          order_number,
           user_id,
           product_id: targetItem.product_id,
           variant_id: targetItem.variant_id,

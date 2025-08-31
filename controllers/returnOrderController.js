@@ -6,6 +6,7 @@ const {s3UploadHandler,s3DeleteHandler,s3ReplaceHandler} = require("../helpers/s
 const createReturnedOrder = async (
   {
     orderId,
+    order_number,
     user_id,
     product_id,
     variant_id,
@@ -48,6 +49,7 @@ const createReturnedOrder = async (
     // Create the returned order document
     const returnedOrder = new ReturnedOrder({
       orderId,
+      order_number,
       user_id,
       product_id,
       variant_id,
@@ -211,6 +213,7 @@ const markAsInspected = async (req, res, next) => {
           $project: {
             _id: 1,
             orderId: 1,
+            order_number : 1,
             returnedAt: 1,
             refundStatus: 1,
             refundedAt: 1,
@@ -320,6 +323,7 @@ const markAsInspected = async (req, res, next) => {
           $project: {
             _id: 1,
             orderId: 1,
+            order_number : 1,
             returnedAt: 1,
             refundStatus: 1,
             refundedAt: 1,
@@ -420,6 +424,7 @@ const markAsInspected = async (req, res, next) => {
         {
           $project: {
             orderId: 1,
+            order_number : 1,
             user_id: 1,
             returnedAt: 1,
             refundStatus: 1,

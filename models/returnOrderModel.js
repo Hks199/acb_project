@@ -7,6 +7,11 @@ const returnedOrderSchema = new mongoose.Schema(
       ref: "Order",
       required: true,
     },
+    order_number: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",   
+      required: true,
+    },
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
