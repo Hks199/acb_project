@@ -248,7 +248,6 @@ const getUserCancelledItems = async (req, res, next) => {
           total_price: "$cancelledItems.total_price",
           product_name: "$product.product_name",
           customId : "$product.order_number",
-          order_number : "$product.order_number",
           product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
           variant_combination: 1,
         },
@@ -260,7 +259,7 @@ const getUserCancelledItems = async (req, res, next) => {
     ];
 
     const cancelledItems = await CancelledOrder.aggregate(pipeline);
-
+    console.log(cancelledItems)
     const totalResult = await CancelledOrder.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(user_id) } },
       { $unwind: "$cancelledItems" },
@@ -368,7 +367,6 @@ const getCanceledItemDetails = async (req, res, next) => {
           price_per_unit: "$cancelledItems.price_per_unit",
           total_price: "$cancelledItems.total_price",
           product_name: "$product.product_name",
-          order_number: "$product.order_number",
           customId : "$product.order_number",
           product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
           variant_combination: 1,
@@ -465,7 +463,6 @@ const getAllCancelledItems = async (req, res, next) => {
           price_per_unit: "$cancelledItems.price_per_unit",
           total_price: "$cancelledItems.total_price",
           product_name: "$product.product_name",
-          order_number: "$product.order_number",
           customId: "$product.order_number",
           product_image: { $arrayElemAt: ["$product.imageUrls", 0] },
           variant_combination: 1,

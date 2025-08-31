@@ -8,8 +8,7 @@ const returnedOrderSchema = new mongoose.Schema(
       required: true,
     },
     order_number: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Order",   
+      type: String,   
       required: true,
     },
     user_id: {

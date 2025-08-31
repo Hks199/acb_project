@@ -373,8 +373,8 @@ const sendOTP = async (otp, email, name) => {
             
             <div class="contact-section">
               <p>Need assistance? We're here to help!</p>
-              <a href="tel:+919205400601" class="contact-number">
-                📞 +91 9205400601
+              <a href="tel:+919211322707" class="contact-number">
+                📞 +91 92113 22707
               </a>
             </div>
             

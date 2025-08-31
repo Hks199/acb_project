@@ -10,8 +10,7 @@ const cancelledOrderSchema = new mongoose.Schema(
       unique: true,
     },
     order_number: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Order",
+      type: String,
       required: true,
       unique: true,
     },
