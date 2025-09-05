@@ -24,11 +24,6 @@ const orderSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "ProductVariantSet", // Optional, if variants exist
         },
-        // vendor_id: {
-        //   type: mongoose.Schema.Types.ObjectId,
-        //   ref: "Vendor",
-        //   required: true,
-        // },
         quantity: {
           type: Number,
           required: true,
