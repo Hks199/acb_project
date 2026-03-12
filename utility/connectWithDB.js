@@ -1,6 +1,6 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
-const dbURL = "mongodb://127.0.0.1:27017/artandcraft_dev";
+const dbURL = process.env.MONGODB_URL;
 
 mongoose
   .connect(dbURL)
