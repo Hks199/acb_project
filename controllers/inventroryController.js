@@ -10,6 +10,7 @@ const createProduct = async (req, res, next) => {
       vendor_id,
       product_name,
       description,
+      actual_price,
       price,
       stock,
       isActive,
@@ -34,6 +35,7 @@ const createProduct = async (req, res, next) => {
       product_name,
       description,
       price,
+      actual_price,
       stock,
       isActive,
       imageUrls: parsedImageUrls
@@ -222,6 +224,7 @@ const searchProductsByName = async (req, res, next) => {
               _id: 1,
               product_name: 1,
               price: 1,
+              actual_price : 1,
               imageUrls: 1,
               avg_rating: 1,
               review_count: 1,

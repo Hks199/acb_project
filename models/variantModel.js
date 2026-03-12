@@ -1,5 +1,6 @@
 
 const mongoose = require("mongoose");
+const { isNumber } = require("razorpay/dist/utils/razorpay-utils");
 
 // Sub-schema for variant combinations
 const variantCombinationSchema = new mongoose.Schema({
@@ -21,6 +22,10 @@ const variantCombinationSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0,
+  },
+  actual_price : {
+    type : Number,
+    min : 0
   },
   stock: {
     type: Number,
