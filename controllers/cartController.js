@@ -3,7 +3,8 @@ const { CustomError } = require("../errors/CustomErrorHandler.js");
 const mongoose = require("mongoose");
 const Product = require("../models/inventoryModel.js");
 const ProductVariantSet = require("../models/variantModel.js");
-
+const Discount = require("../models/discountModel");
+const Order = require("../models/orderModel");
 
 const addToCart = async (req, res, next) => {
   try {
@@ -296,7 +297,7 @@ const calculateCartTotalAmount = async (req, res, next) => {
           productId: "$items.product_id"
         }
       },
-
+ 
       // Compute item total
       {
         $project: {
@@ -325,13 +326,49 @@ const calculateCartTotalAmount = async (req, res, next) => {
       }
     ]);
 
-    const totalAmount = result[0]?.totalAmount || 0;
+    let totalAmount = result[0]?.totalAmount || 0;
     const uniqueItemCount = result[0]?.uniqueItemCount || 0;
 
+    let isfirstOrder = await Order.findOne({ user_id: userId });
+
+    let discount = await Discount.findById("69abe13c74a49e13d7b1d041");
+
+    let addition_discount = 0;
+    let first_order_discount = 0;
+
+    if (!isfirstOrder) {
+
+    first_order_discount =
+        (discount.first_time_discount_in_percentage * totalAmount) / 100;
+
+    if (totalAmount >= discount.additional_discount_minimum_amount) {
+
+        addition_discount =
+            (discount.additional_discount_in_percentage * totalAmount) / 100;
+
+    }
+
+    } else {
+
+       if (totalAmount >= discount.additional_discount_minimum_amount) {
+
+        addition_discount =
+            (discount.additional_discount_in_percentage * totalAmount) / 100;
+
+    }
+ }
+    
+   let totalAmountAfterDiscount = totalAmount - first_order_discount - addition_discount;
+    
+   console.log(addition_discount, first_order_discount, totalAmountAfterDiscount);
+    
     res.status(200).json({
       success: true,
       totalAmount,
-      uniqueItemCount
+      uniqueItemCount,
+      addition_discount,
+      first_order_discount,
+      totalAmountAfterDiscount
     });
   } catch (error) {
     next(

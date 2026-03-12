@@ -84,6 +84,16 @@ const orderSchema = new mongoose.Schema(
       default: 0,
     },
 
+    first_time_discount_in_amount : {
+        type : Number,
+        default : 0
+    },
+
+    additional_discount_in_amount : {
+        type : Number,
+        default : 0
+    },
+
     totalAmount: {
       type: Number,
       required: true,

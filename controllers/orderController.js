@@ -39,7 +39,6 @@ const createOrder = async (req, res, next) => {
       if(product.stock < item.quantity) {
           throw new CustomError(`Insufficient stock for product: ${item.product_id}`, 400);
       }
-      
     }
 
     const {
@@ -49,7 +48,10 @@ const createOrder = async (req, res, next) => {
       subtotal,
       tax = 0,
       deliveryCharge = 0,
+      first_time_discount_in_amount = 0,
+      additional_discount_in_amount = 0
     } = req.body;
+
     let order_number = await generateOrderId();
     const totalAmount = subtotal + tax + deliveryCharge;
 
@@ -73,6 +75,8 @@ const createOrder = async (req, res, next) => {
           tax,
           deliveryCharge,
           totalAmount,
+          first_time_discount_in_amount,
+          additional_discount_in_amount,
           razorpayOrderId: razorpayOrder.id,
           currency: razorpayOrder.currency,
           currency: "INR"

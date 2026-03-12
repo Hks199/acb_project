@@ -41,6 +41,7 @@ const addToCart = require("./routes/cartRoutes");
 const contactForm = require("./routes/contactFormRouter");
 const cancelOrder = require("./routes/cancelOrderRoutes");
 const returnOrder = require("./routes/returnOrderRoutes");
+const discount = require("./routes/discountRoutes");
 app.use(fileUpload());
 
 app.use(helmet()); // Mitigates XSS attacks and ClickJacking
@@ -65,7 +66,8 @@ app.use("/api/vendor",vendorRegistrationrouters);
 app.use("/api/cart",addToCart);
 app.use("/api/contact",contactForm);
 app.use("/api/cancel",cancelOrder);
-app.use("/api/return",returnOrder)
+app.use("/api/return",returnOrder);
+app.use("/api",discount);
 // Global error handling middleware
 app.use(errorHandler);
 
