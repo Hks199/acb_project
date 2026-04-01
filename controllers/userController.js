@@ -3,6 +3,7 @@ const { CustomError } = require("../errors/CustomErrorHandler.js");
 const { sendOTP } = require("../helpers/nodeMailer.js")
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const Order = require("../models/orderModel");
 
 // **Register User & Send OTP**
 const registerUser = async (req, res, next) => {
@@ -116,6 +117,13 @@ const loginUser = async (req, res, next) => {
       });
     }
 
+      let isFirstOrder = await Order.exists({ user_id: user._id });
+      if(isFirstOrder) {
+        isFirstOrder = 0;
+      }else {
+        isFirstOrder = 1;
+      }
+
     // 📌 **Reset OTP verification status after login**
     // user.isOtpVerify = false;
     // await user.save();
@@ -145,6 +153,7 @@ const loginUser = async (req, res, next) => {
       success: true,
       message: "Login successful!",
       token,
+      order_flag : isFirstOrder
     });
 
   } catch (error) {
