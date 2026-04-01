@@ -407,6 +407,13 @@ const getUserByAuthToken = async (req, res, next) => {
     if (!user) {
       return next(new CustomError("UserNotFound", "User not found", 404));
     }
+    
+      let isFirstOrder = await Order.exists({ user_id: user._id });
+      if(isFirstOrder) {
+        isFirstOrder = 0;
+      }else {
+        isFirstOrder = 1;
+      }
 
     const userData = {
       _id : user._id,
@@ -421,6 +428,7 @@ const getUserByAuthToken = async (req, res, next) => {
       state: user.state,
       city: user.city,
       country: user.country,
+      order_flag: isFirstOrder
     };
 
     res.status(200).json({ status: "success", userData });
