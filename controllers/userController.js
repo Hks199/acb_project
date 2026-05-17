@@ -1,6 +1,7 @@
 const User = require("../models/userModel.js");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
-const { sendOTP } = require("../helpers/nodeMailer.js")
+const { sendOTP } = require("../helpers/nodeMailer.js");
+const { sendWhatsAppOTP } = require("../helpers/twilioHelper.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Order = require("../models/orderModel");
@@ -36,6 +37,9 @@ const registerUser = async (req, res, next) => {
 
     // Send OTP via Email
     await sendOTP(otp, user.email, user.first_name);
+
+    // Send OTP via WhatsApp
+    await sendWhatsAppOTP(otp, user.mobile_number);
 
     //**Response**
     res.status(201).json({
@@ -110,6 +114,9 @@ const loginUser = async (req, res, next) => {
       // **Send OTP via Email**
       await sendOTP(otp, user.email, user.first_name);
 
+      // **Send OTP via WhatsApp**
+      await sendWhatsAppOTP(otp, user.mobile_number);
+
       return res.status(400).json({
         success: false,
         error: "UnverifiedUser",
@@ -182,6 +189,9 @@ const forgotPassword = async (req, res, next) => {
 
     // Send OTP via Email
     await sendOTP(otp, user.email, user.first_name);
+
+    // Send OTP via WhatsApp
+    await sendWhatsAppOTP(otp, user.mobile_number);
 
     res.status(200).json({
       success: true,
