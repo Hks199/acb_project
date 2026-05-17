@@ -90,10 +90,17 @@ const verifyOtp = async (req, res, next) => {
 // **Login User**
 const loginUser = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, mobile_number, password } = req.body;
+
+    const identifier = email || mobile_number;
+    if (!identifier) {
+      return next(new CustomError("InvalidInput", "Please provide email or mobile number.", 400));
+    }
 
     // 📌 **Check if user exists**
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ 
+      $or: [{ email: identifier }, { mobile_number: identifier }]
+    });
 
     if (!user) {
       return next(new CustomError("UserNotFound", "User not found. Please register first.", 404));
