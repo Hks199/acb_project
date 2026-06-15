@@ -5,6 +5,7 @@ const Product = require("../models/inventoryModel.js");
 const ProductVariantSet = require("../models/variantModel.js");
 const Discount = require("../models/discountModel");
 const Order = require("../models/orderModel");
+const Promotion = require("../models/promotionModel");
 
 const addToCart = async (req, res, next) => {
   try {
@@ -239,7 +240,8 @@ const calculateCartTotalAmount = async (req, res, next) => {
       throw new CustomError("User ID is required", 400);
     }
 
-    const result = await Cart.aggregate([
+    // ── Step 1: Fetch all cart items with price resolved from variant or product ──
+    const rawItems = await Cart.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
       { $unwind: "$items" },
 
@@ -249,12 +251,12 @@ const calculateCartTotalAmount = async (req, res, next) => {
           from: "productvariantsets",
           localField: "items.product_id",
           foreignField: "productId",
-          as: "variantSet"
-        }
+          as: "variantSet",
+        },
       },
       { $unwind: { path: "$variantSet", preserveNullAndEmptyArrays: true } },
 
-      // Get the matched combination object by _id (items.variant_id)
+      // Get matched combination by variant_id
       {
         $addFields: {
           matchedCombination: {
@@ -263,13 +265,13 @@ const calculateCartTotalAmount = async (req, res, next) => {
                 $filter: {
                   input: "$variantSet.combinations",
                   as: "combo",
-                  cond: { $eq: ["$$combo._id", "$items.variant_id"] }
-                }
+                  cond: { $eq: ["$$combo._id", "$items.variant_id"] },
+                },
               },
-              0
-            ]
-          }
-        }
+              0,
+            ],
+          },
+        },
       },
 
       // Lookup product
@@ -278,97 +280,148 @@ const calculateCartTotalAmount = async (req, res, next) => {
           from: "products",
           localField: "items.product_id",
           foreignField: "_id",
-          as: "product"
-        }
+          as: "product",
+        },
       },
       { $unwind: "$product" },
 
-      // Add item price from combination or fallback to product
+      // Resolve per-unit price: variant price → fallback to product price
       {
         $addFields: {
-          itemPrice: {
+          unitPrice: {
             $cond: {
               if: { $ifNull: ["$matchedCombination.price", false] },
               then: "$matchedCombination.price",
-              else: "$product.price"
-            }
+              else: "$product.price",
+            },
           },
           quantity: "$items.quantity",
-          productId: "$items.product_id"
-        }
+          productId: "$items.product_id",
+        },
       },
- 
-      // Compute item total
+
       {
         $project: {
           _id: 0,
-          totalPerItem: { $multiply: ["$itemPrice", "$quantity"] },
-          productId: 1
-        }
+          productId: 1,
+          quantity: 1,
+          unitPrice: 1,
+        },
       },
-
-      // Group to calculate total
-      {
-        $group: {
-          _id: null,
-          totalAmount: { $sum: "$totalPerItem" },
-          uniqueProducts: { $addToSet: "$productId" }
-        }
-      },
-
-      // Final output
-      {
-        $project: {
-          _id: 0,
-          totalAmount: 1,
-          uniqueItemCount: { $size: "$uniqueProducts" }
-        }
-      }
     ]);
 
-    let totalAmount = result[0]?.totalAmount || 0;
-    const uniqueItemCount = result[0]?.uniqueItemCount || 0;
+    if (!rawItems || rawItems.length === 0) {
+      return res.status(200).json({
+        success: true,
+        totalAmount: 0,
+        uniqueItemCount: 0,
+        promotion_savings: 0,
+        addition_discount: 0,
+        first_order_discount: 0,
+        totalAmountAfterDiscount: 0,
+        items: [],
+      });
+    }
 
-    let isfirstOrder = await Order.findOne({ user_id: userId });
+    // ── Step 2: Load all active promotions for products in the cart ──
+    const now = new Date();
+    const productIds = rawItems.map((i) => i.productId);
 
-    let discount = await Discount.findById("69abe13c74a49e13d7b1d041");
+    const activePromotions = await Promotion.find({
+      product_id: { $in: productIds },
+      is_active: true,
+      $or: [
+        { start_date: null, end_date: null },
+        { start_date: { $lte: now }, end_date: null },
+        { start_date: null, end_date: { $gte: now } },
+        { start_date: { $lte: now }, end_date: { $gte: now } },
+      ],
+    }).lean();
+
+    // Map product_id (string) → promotion for fast lookup
+    const promoMap = {};
+    for (const promo of activePromotions) {
+      promoMap[promo.product_id.toString()] = promo;
+    }
+
+    // ── Step 3: Calculate total applying promotion logic per item ──
+    let totalAmount = 0;          // total before promo
+    let totalAfterPromo = 0;      // total after promo applied
+    let promotion_savings = 0;
+    const uniqueProductIds = new Set();
+    const itemBreakdown = [];
+
+    for (const item of rawItems) {
+      const pidStr = item.productId.toString();
+      uniqueProductIds.add(pidStr);
+
+      const normalTotal = item.unitPrice * item.quantity;
+      totalAmount += normalTotal;
+
+      const promo = promoMap[pidStr];
+      let promoTotal = normalTotal;
+      let promoApplied = false;
+      let promoSetsUsed = 0;
+
+      if (promo && item.quantity >= promo.min_quantity) {
+        // Per-unit promo price: e.g. buy 3 for ₹999 → ₹333 per item
+        // ALL items (including extras) get this promo unit price
+        // e.g. 4 items → 4 × 333 = ₹1332
+        const promoUnitPrice = promo.promo_price / promo.min_quantity;
+        promoTotal = item.quantity * promoUnitPrice;
+        promoApplied = true;
+        promoSetsUsed = Math.floor(item.quantity / promo.min_quantity);
+      }
+
+      totalAfterPromo += promoTotal;
+      promotion_savings += normalTotal - promoTotal;
+
+      itemBreakdown.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        normalTotal,
+        promoApplied,
+        promoSetsUsed,
+        promoDescription: promoApplied ? promo.description : null,
+        finalTotal: promoTotal,
+      });
+    }
+
+    const uniqueItemCount = uniqueProductIds.size;
+
+    // ── Step 4: Apply existing first-order / additional discounts ──
+    const isFirstOrder = await Order.findOne({ user_id: userId });
+    const discount = await Discount.findById("69abe13c74a49e13d7b1d041");
 
     let addition_discount = 0;
     let first_order_discount = 0;
 
-    if (!isfirstOrder) {
+    if (discount) {
+      if (!isFirstOrder) {
+        first_order_discount =
+          (discount.first_time_discount_in_percentage * totalAfterPromo) / 100;
+      }
 
-    first_order_discount =
-        (discount.first_time_discount_in_percentage * totalAmount) / 100;
-
-    if (totalAmount >= discount.additional_discount_minimum_amount) {
-
+      if (totalAfterPromo >= discount.additional_discount_minimum_amount) {
         addition_discount =
-            (discount.additional_discount_in_percentage * totalAmount) / 100;
-
+          (discount.additional_discount_in_percentage * totalAfterPromo) / 100;
+      }
     }
 
-    } else {
+    const totalAmountAfterDiscount =
+      totalAfterPromo - first_order_discount - addition_discount;
 
-       if (totalAmount >= discount.additional_discount_minimum_amount) {
-
-        addition_discount =
-            (discount.additional_discount_in_percentage * totalAmount) / 100;
-
-    }
- }
-    
-   let totalAmountAfterDiscount = totalAmount - first_order_discount - addition_discount;
-    
-   console.log(addition_discount, first_order_discount, totalAmountAfterDiscount);
-    
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      totalAmount,
+      totalAmount,                   // original total (no promo, no discount)
+      totalAfterPromo,               // after promotion applied
       uniqueItemCount,
+      promotion_savings,             // how much saved from promotions
       addition_discount,
       first_order_discount,
-      totalAmountAfterDiscount
+      totalAmountAfterDiscount,      // final amount user pays
+      items: itemBreakdown,          // per-item price breakdown
     });
   } catch (error) {
     next(

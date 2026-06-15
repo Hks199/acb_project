@@ -42,6 +42,7 @@ const contactForm = require("./routes/contactFormRouter");
 const cancelOrder = require("./routes/cancelOrderRoutes");
 const returnOrder = require("./routes/returnOrderRoutes");
 const discount = require("./routes/discountRoutes");
+const promotionRoutes = require("./routes/promotionRoutes");
 app.use(fileUpload());
 
 app.use(helmet()); // Mitigates XSS attacks and ClickJacking
@@ -68,6 +69,7 @@ app.use("/api/contact",contactForm);
 app.use("/api/cancel",cancelOrder);
 app.use("/api/return",returnOrder);
 app.use("/api",discount);
+app.use("/api/promotions", promotionRoutes);
 // Global error handling middleware
 app.use(errorHandler);
 
