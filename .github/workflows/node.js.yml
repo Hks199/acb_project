@@ -7,7 +7,10 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted
+    # Match the runner labels configured on GitHub.
+    # In GitHub Actions, the runner labels usually appear as:
+    # self-hosted, Linux, X64
+    runs-on: [self-hosted, linux, x64]
 
     strategy:
       matrix:
