@@ -4,7 +4,6 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
-  
 
 jobs:
   build:
@@ -15,57 +14,77 @@ jobs:
         node-version: ["22.x"]
 
     steps:
-    - name: 📥 Checkout Repository
-      uses: actions/checkout@v4
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: 🧰 Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+      - name: 🧰 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-    - name: 📦 Install Dependencies
-      working-directory: ${{ github.workspace }}
-      run: npm ci
+      - name: 📦 Install Dependencies
+        run: npm ci
 
-    - name: 🛠️ Create .env file
-      working-directory: ${{ github.workspace }}
-      run: |
-        cat <<EOF > .env
-        PORT=${{ secrets.PORT }}
-        JWT_SECRET=${{ secrets.JWT_SECRET }}
-        MONGODB_URL=${{ secrets.MONGODB_URL }}
-        FIRST_PROJECT_LINK=${{ secrets.FIRST_PROJECT_LINK }}
-        SECOND_PROJECT_LINK=${{ secrets.SECOND_PROJECT_LINK }}
-        EMAIL_USER=${{ secrets.EMAIL_USER }}
-        EMAIL_PASS=${{ secrets.EMAIL_PASS }}
-        AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY }}
-        AWS_SECRET_KEY=${{ secrets.AWS_SECRET_KEY }}
-        AWS_REGION=${{ secrets.AWS_REGION }}
-        S3_BUCKET=${{ secrets.S3_BUCKET }}
-        RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
-        RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-        RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
-        EOF
-        echo ".env file created"
-        
-    - name: 📈 Export NVM path (if needed)
-      run: echo "PATH=$PATH:/home/ubuntu/.nvm/versions/node/v22.14.0/bin" >> $GITHUB_ENV
+      - name: 🛠️ Create .env file
+        shell: bash
+        env:
+          PORT: ${{ secrets.PORT }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          MONGODB_URL: ${{ secrets.MONGODB_URL }}
+          FIRST_PROJECT_LINK: ${{ secrets.FIRST_PROJECT_LINK }}
+          SECOND_PROJECT_LINK: ${{ secrets.SECOND_PROJECT_LINK }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          RAZORPAY_WEBHOOK_SECRET: ${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+        run: |
+          cat <<EOF > .env
+          PORT=${PORT}
+          JWT_SECRET=${JWT_SECRET}
+          MONGODB_URL=${MONGODB_URL}
+          FIRST_PROJECT_LINK=${FIRST_PROJECT_LINK}
+          SECOND_PROJECT_LINK=${SECOND_PROJECT_LINK}
+          EMAIL_USER=${EMAIL_USER}
+          EMAIL_PASS=${EMAIL_PASS}
+          AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+          AWS_SECRET_KEY=${AWS_SECRET_KEY}
+          AWS_REGION=${AWS_REGION}
+          S3_BUCKET=${S3_BUCKET}
+          RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET}
+          RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+          RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+          EOF
+          echo ".env file created"
 
-    - name: 🚀 Start or reload PM2 app
-      working-directory: ${{ github.workspace }}
-      run: |
-        if pm2 list | grep -q acb_project; then
-          echo "Reloading existing PM2 process..."
-          pm2 reload acb_project
-        else
-          echo "Starting new PM2 process..."
-          pm2 start index.js --name acb_project
-        fi
+      - name: ✅ Ensure PM2 is installed
+        shell: bash
+        run: |
+          if ! command -v pm2 >/dev/null 2>&1; then
+            npm install --global pm2
+          fi
+          pm2 --version
 
-    - name: 💾 Save PM2 process list
-      run: pm2 save
+      - name: 🚀 Start or reload PM2 app
+        shell: bash
+        env:
+          NODE_ENV: production
+        run: |
+          export PATH="$(dirname "$(command -v node)"):$PATH"
+          if pm2 list | grep -q "acb_project"; then
+            echo "Reloading existing PM2 process..."
+            pm2 reload acb_project --update-env
+          else
+            echo "Starting new PM2 process..."
+            pm2 start index.js --name acb_project --watch false --env production
+          fi
 
-
-
-
+      - name: 💾 Save PM2 process list
+        shell: bash
+        run: |
+          pm2 save --force
