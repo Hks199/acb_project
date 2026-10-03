@@ -5,7 +5,21 @@ const reviewSchema = new mongoose.Schema(
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: function () { return this.isAdminReview !== true; },
+    },
+    adminReviewId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: function () { return this.isAdminReview === true; },
+    },
+    customerName: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      required: function () { return this.isAdminReview === true; },
+    },
+    isAdminReview: {
+      type: Boolean,
+      default: false,
     },
     rating: {
       type: Number,

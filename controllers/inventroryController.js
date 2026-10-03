@@ -2,6 +2,7 @@ const Product = require("../models/inventoryModel");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
 const {getVariantSetByProductId} = require("./variantController.js");
 const mongoose = require("mongoose");
+const { withProductRatings } = require("../helpers/productRatings");
 // CREATE
 const createProduct = async (req, res, next) => {
   try {
@@ -297,7 +298,7 @@ const getProductsSortedByReviews = async (req, res, next) => {
       }
     ]);
 
-    const products = result[0].data;
+    const products = await withProductRatings(result[0].data);
     const totalCount = result[0].totalCount[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
@@ -346,7 +347,7 @@ const getProductsByCategoryId = async (req, res, next) => {
       page,
       totalPages: Math.ceil(total / limit),
       totalItems: total,
-      products,
+      products: await withProductRatings(products),
     });
   } catch (error) {
     next(new CustomError("FetchProductError", error.message, 500));

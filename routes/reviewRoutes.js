@@ -1,6 +1,7 @@
 const express = require("express");
-const {authMiddleware,roleMiddleware} = require("../middlewares/auth");
 const {
+  addAdminReview,
+  deleteAdminReview,
   addReview,
   getAllReviews,
   getReviewsByProduct,
@@ -8,6 +9,9 @@ const {
 } = require("../controllers/reviewController");
 
 const router = express.Router();
+
+router.post("/addAdminReview", addAdminReview);
+router.delete("/deleteAdminReview/:productId/:customerId", deleteAdminReview);
 
 router.post("/addReview", addReview); // Add new review
 router.get("/getAllReviews", getAllReviews); // Get all reviews

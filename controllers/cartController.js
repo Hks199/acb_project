@@ -6,16 +6,25 @@ const ProductVariantSet = require("../models/variantModel.js");
 const Discount = require("../models/discountModel");
 const Order = require("../models/orderModel");
 const Promotion = require("../models/promotionModel");
+const { validateCartStock } = require("../helpers/cartStock");
 
 const addToCart = async (req, res, next) => {
   try {
     const { user_id, product_id, variant_id, quantity } = req.body;
 
-    if (!user_id || !product_id || quantity < 1) {
+    if (!user_id || !product_id || !Number.isSafeInteger(quantity) || quantity < 1) {
       return next(new CustomError("BadRequest", "user_id, product_id, and quantity required", 400));
     }
 
     let cart = await Cart.findOne({ user_id });
+    const existingItem = cart?.items.find(
+      (item) =>
+        item.product_id.toString() === product_id &&
+        (variant_id ? item.variant_id?.toString() === variant_id : !item.variant_id)
+    );
+    await validateCartStock(
+      cart?.items || [], product_id, variant_id, (existingItem?.quantity || 0) + quantity
+    );
 
     if (!cart) {
       cart = await Cart.create({
@@ -23,12 +32,6 @@ const addToCart = async (req, res, next) => {
         items: [{ product_id, variant_id, quantity }],
       });
     } else {
-      const existingItem = cart.items.find(
-        (item) =>
-          item.product_id.toString() === product_id &&
-          (variant_id ? item.variant_id?.toString() === variant_id : !item.variant_id)
-      );
-
       if (existingItem) {
         existingItem.quantity += quantity;
       } else {
@@ -40,7 +43,7 @@ const addToCart = async (req, res, next) => {
 
     res.status(200).json({ success: true,message:"submited successfully"});
   } catch (error) {
-    next(new CustomError("AddToCartError", error.message, 500));
+    next(error instanceof CustomError ? error : new CustomError("AddToCartError", error.message, 500));
   }
 };
 
@@ -67,7 +70,7 @@ const getCart = async (req, res, next) => {
     const detailedItems = await Promise.all(
       cart.items.map(async (item) => {
         const product = await Product.findById(item.product_id)
-          .select("product_name price imageUrls")
+          .select("product_name price imageUrls stock")
           .session(session);
 
         const variantSet = await ProductVariantSet.findOne({
@@ -88,6 +91,7 @@ const getCart = async (req, res, next) => {
             _id: product?._id,
             name: product?.product_name,
             image: product?.imageUrls?.[0],
+            stock: product?.stock,
           },
           quantity: item.quantity,
           variant: variantDetails || null,
@@ -119,7 +123,7 @@ const updateCartItem = async (req, res, next) => {
     const { user_id, product_id, variant_id, quantity } = req.body;
 
     // Basic validations
-    if (!user_id || !product_id || quantity == null || quantity < 1) {
+    if (!user_id || !product_id || !Number.isSafeInteger(quantity) || quantity < 1) {
       return next(new CustomError("BadRequest", "Missing or invalid fields", 400));
     }
 
@@ -144,6 +148,8 @@ const updateCartItem = async (req, res, next) => {
       return next(new CustomError("NotFound", "Item not found in cart", 404));
     }
 
+    await validateCartStock(cart.items, product_id, variant_id, quantity);
+
     // Update quantity
     item.quantity = quantity;
     await cart.save();
@@ -153,7 +159,7 @@ const updateCartItem = async (req, res, next) => {
       message: "Cart item updated successfully",
     });
   } catch (error) {
-    next(new CustomError("UpdateCartError", error.message, 500));
+    next(error instanceof CustomError ? error : new CustomError("UpdateCartError", error.message, 500));
   }
 };
 
