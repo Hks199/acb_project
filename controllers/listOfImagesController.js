@@ -4,10 +4,14 @@ const { CustomError } = require("../errors/CustomErrorHandler.js");
 // 📌 CREATE
 const createImage = async (req, res, next) => {
   try {
-    const { title } = req.body;
+    const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
+
+    if (!title) {
+      throw new CustomError("BadRequest", "Image title is required", 400);
+    }
 
     if (!req.files || !req.files.image) {
-      throw new CustomError("Image file is required", 400);
+      throw new CustomError("BadRequest", "Image file is required", 400);
     }
 
     const { publicUrl, fileKey } = await s3UploadHandler(req.files.image, "gallery");
@@ -26,7 +30,7 @@ const createImage = async (req, res, next) => {
       data: imageDoc,
     });
   } catch (err) {
-    next(err instanceof CustomError ? err : new CustomError(err.message, 500));
+    next(err instanceof CustomError ? err : new CustomError("ImageUploadError", err.message, 500));
   }
 };
 
@@ -53,7 +57,7 @@ const getAllImages = async (req, res, next) => {
         data: images,
       });
     } catch (err) {
-      next(new CustomError(err.message, 500));
+      next(new CustomError("FetchImagesError", err.message, 500));
     }
   };
   
@@ -66,7 +70,7 @@ const updateImage = async (req, res, next) => {
 
     const imageDoc = await ImageList.findById(id);
     if (!imageDoc) {
-      throw new CustomError("Image not found", 404);
+      throw new CustomError("NotFound", "Image not found", 404);
     }
 
     if (req.files && req.files.image) {
@@ -85,7 +89,7 @@ const updateImage = async (req, res, next) => {
       data: imageDoc,
     });
   } catch (err) {
-    next(new CustomError(err.message, 500));
+    next(err instanceof CustomError ? err : new CustomError("ImageUpdateError", err.message, 500));
   }
 };
 
@@ -96,7 +100,7 @@ const deleteImage = async (req, res, next) => {
 
     const imageDoc = await ImageList.findById(id);
     if (!imageDoc) {
-      throw new CustomError("Image not found", 404);
+      throw new CustomError("NotFound", "Image not found", 404);
     }
 
     await s3DeleteHandler(imageDoc.imageKeys);
@@ -107,7 +111,7 @@ const deleteImage = async (req, res, next) => {
       message: "Image deleted successfully",
     });
   } catch (err) {
-    next(new CustomError(err.message, 500));
+    next(err instanceof CustomError ? err : new CustomError("ImageDeleteError", err.message, 500));
   }
 };
 
