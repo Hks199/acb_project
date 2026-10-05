@@ -38,10 +38,10 @@ const createOrUpdateCancelledOrder = async (
   }
 
   // Calculate total refund
-  const refundAmount = cancelledItems.reduce(
+  const refundAmount = Math.round(cancelledItems.reduce(
     (sum, item) => sum + item.total_price,
     0
-  );
+  ) * 100) / 100;
 
   try {
     // Check if already cancelled
@@ -509,10 +509,3 @@ module.exports = {
     getCanceledItemDetails,
     getAllCancelledItems
 };
-
-
-
-
-
-
-  

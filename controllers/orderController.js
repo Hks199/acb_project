@@ -1,6 +1,6 @@
 const Order = require("../models/orderModel");
 const razorpay = require("../helpers/razorpayInstance");
-const Product = require("../models/inventoryModel");
+const { quoteOrder } = require("../helpers/quoteOrder");
 const { CustomError } = require("../errors/CustomErrorHandler.js");
 const crypto = require("crypto");
 const {createOrUpdateCancelledOrder} = require("./cancelOrderController.js")
@@ -10,95 +10,45 @@ const {updateVariantsStock} = require("./variantController.js")
 const mongoose = require("mongoose");
 const {generateOrderId} = require("../helpers/generateOrderId.js");
 
+const getOrderQuote = async (req, res, next) => {
+  try {
+    const quote = await quoteOrder(req.body.orderedItems, req.body.user_id);
+    res.json({ success: true, ...quote });
+  } catch (error) { next(error); }
+};
+
 const createOrder = async (req, res, next) => {
   try {
-    // Validate orderedItems before starting transaction
-    const { orderedItems } = req.body;
-    if (!Array.isArray(orderedItems) || orderedItems.length === 0) {
-      throw new CustomError("No ordered items provided", 400);
-    }
-      for (const item of orderedItems) {
-      if (
-        !item.product_id ||
-        !mongoose.Types.ObjectId.isValid(item.product_id) ||
-        typeof item.quantity !== "number" ||
-        item.quantity <= 0
-      ) {
-        throw new CustomError(`Invalid ordered item detected: ${JSON.stringify(item)}`, 400);
-      }
-      // Check if product exists
-      const productExists = await mongoose.model("Product").exists({ _id: item.product_id });
-        if (!productExists) {
-        throw new CustomError(`Product not found: ${item.product_id}`, 404);
-      }
-      const product = await Product.findById(item.product_id);
-        if (!product) {
-        throw new CustomError(`Product not found: ${item.product_id}`, 404);
-      }
-    
-      if(product.stock < item.quantity) {
-          throw new CustomError(`Insufficient stock for product: ${item.product_id}`, 400);
-      }
-    }
-
-    const {
-      user_id,
-      shippingAddress,
-      paymentMethod,
-      subtotal,
-      tax = 0,
-      deliveryCharge = 0,
-      first_time_discount_in_amount = 0,
-      additional_discount_in_amount = 0
-    } = req.body;
-
-    let order_number = await generateOrderId();
-    const totalAmount = subtotal + tax + deliveryCharge;
-
-    // Step 1: Create Razorpay order
+    // Resolve stock, prices, and offers from the database. Client prices are never authoritative.
+    const { user_id, shippingAddress, paymentMethod } = req.body;
+    const quote = await quoteOrder(req.body.orderedItems, user_id);
+    const orderedItems = quote.items.map((item) => ({
+      product_id: item.productId,
+      ...(item.variantId ? { variant_combination_id: item.variantId } : {}),
+      quantity: item.quantity,
+      price_per_unit: item.effectiveUnitPrice,
+      total_price: item.finalTotal,
+    }));
+    const order_number = await generateOrderId();
     const razorpayOrder = await razorpay.orders.create({
-      amount: totalAmount * 100, // paise
+      amount: Math.round(quote.totalAmountToPay * 100),
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     });
-
-    // Step 2: Save order in DB inside transaction
-    const order = await Order.create(
-      [
-        {
-          user_id,
-          order_number,
-          orderedItems,
-          shippingAddress,
-          paymentMethod,
-          subtotal,
-          tax,
-          deliveryCharge,
-          totalAmount,
-          first_time_discount_in_amount,
-          additional_discount_in_amount,
-          razorpayOrderId: razorpayOrder.id,
-          currency: razorpayOrder.currency,
-          currency: "INR"
-        },
-      ],
-    );
-
+    await Order.create([{
+      user_id, order_number, orderedItems, shippingAddress, paymentMethod,
+      subtotal: quote.subtotal, tax: quote.tax, deliveryCharge: quote.deliveryCharge,
+      totalAmount: quote.totalAmountToPay,
+      first_time_discount_in_amount: quote.first_order_discount,
+      additional_discount_in_amount: quote.addition_discount,
+      razorpayOrderId: razorpayOrder.id, currency: "INR",
+    }]);
     res.status(201).json({
-      success: true,
-      // order: order[0], // created via array
-      razorpayOrder: {
-        id: razorpayOrder.id,
-        amount: razorpayOrder.amount/100,
-        currency: razorpayOrder.currency,
-      },
+      success: true, pricing: quote,
+      razorpayOrder: { id: razorpayOrder.id, amount: razorpayOrder.amount / 100, currency: razorpayOrder.currency },
     });
   } catch (error) {
-    next(
-      error instanceof CustomError
-        ? error
-        : new CustomError("CreateOrderError", error.message, 500)
-    );
+    next(error instanceof CustomError ? error : new CustomError("CreateOrderError", error.message, 500));
   }
 };
 
@@ -889,7 +839,7 @@ const getOrderDetails = async (req, res, next) => {
       }
   
       const order = await Order.findById(orderId)
-        .populate("user_id", "first_name email phone")
+        .populate("user_id", "first_name email mobile_number")
         .populate("orderedItems.product_id", "product_name imageUrls")
         .lean();
   
@@ -903,9 +853,9 @@ const getOrderDetails = async (req, res, next) => {
         orderNumber: order.order_number,
         orderDate: new Date(order.createdAt).toLocaleString(),
         customer: {
-          name: order.user_id.name,
+          name: order.user_id.first_name || order.user_id.name,
           email: order.user_id.email,
-          phone: order.user_id.phone,
+          phone: order.user_id.mobile_number || order.user_id.phone,
           shippingAddress: order.shippingAddress,
         },
         payment: {
@@ -917,7 +867,7 @@ const getOrderDetails = async (req, res, next) => {
           srNo: index + 1,
           productName: item.product_id.product_name,
           image: item.product_id.imageUrls?.[0] || null,
-          vendor: item.vendor_id.name,
+          vendor: item.vendor_id?.name || '',
           quantity: item.quantity,
           unitPrice: item.price_per_unit,
           total: item.total_price,
@@ -949,6 +899,7 @@ const getOrderDetails = async (req, res, next) => {
   
 
 module.exports = {
+  getOrderQuote,
     createOrder,
     verifyPayment,
     // handleCustomerOrderAction,
@@ -988,4 +939,3 @@ module.exports = {
 //     "tax": 40,
 //     "deliveryCharge": 60
 //   }
-  

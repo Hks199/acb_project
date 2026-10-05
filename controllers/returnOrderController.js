@@ -24,7 +24,7 @@ const createReturnedOrder = async (
     }
 
 
-    const total_price = quantity * price_per_unit;
+    const total_price = Math.round(quantity * price_per_unit * 100) / 100;
 
     // Normalise returnImages to an array if it's a single file
     const imageArray = Array.isArray(returnImages)

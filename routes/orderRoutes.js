@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {authMiddleware,roleMiddleware} = require("../middlewares/auth");
 const { createOrder,
+    getOrderQuote,
     verifyPayment,
     // handleCustomerOrderAction,
     handleAdminOrderAction,
@@ -14,6 +15,7 @@ const { createOrder,
  } = require("../controllers/orderController");
 
 router.post("/create", createOrder);
+router.post("/quote", getOrderQuote);
 router.post("/verify", verifyPayment);
 router.post('/getUserOrderedProducts',getUserOrderedProducts);
 router.post('/listAllOrders',listAllOrders);

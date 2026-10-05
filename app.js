@@ -70,6 +70,7 @@ app.use("/api/cancel",cancelOrder);
 app.use("/api/return",returnOrder);
 app.use("/api",discount);
 app.use("/api/promotions", promotionRoutes);
+app.use("/api/tshirt-offer", require('./routes/tshirtOfferRoutes'));
 // Global error handling middleware
 app.use(errorHandler);
 
