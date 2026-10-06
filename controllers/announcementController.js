@@ -26,14 +26,11 @@ const findDocument = async (id, session) => {
   if (!document) throw new CustomError('NotFound', 'Announcement not found.', 404);
   return document;
 };
-const deactivateOthers = (id, session) => Announcement.updateMany(
-  { isActive: true, ...(id ? { _id: { $ne: id } } : {}) }, { $set: { isActive: false } }, { session });
-
 exports.getActive = async (req, res, next) => {
   try {
-    const announcement = await Announcement.findOne({ isActive: true }).sort({ updatedAt: -1 }).lean();
+    const announcements = await Announcement.find({ isActive: true }).sort({ createdAt: 1, _id: 1 }).lean();
     res.set('Cache-Control', 'no-store');
-    res.json(announcement || null);
+    res.json(announcements);
   } catch (error) { next(error); }
 };
 exports.getAll = async (req, res, next) => {
@@ -44,7 +41,6 @@ exports.create = async (req, res, next) => {
   try {
     const fields = validateAnnouncement(req.body);
     const result = await mutate(async (session) => {
-      if (fields.isActive) await deactivateOthers(null, session);
       const document = new Announcement();
       Object.entries(fields).forEach(([key, value]) => document.set(key, value));
       return document.save({ session });
@@ -59,7 +55,6 @@ exports.update = async (req, res, next) => {
     const result = await mutate(async (session) => {
       const document = await findDocument(req.params.id, session);
       Object.entries(fields).forEach(([key, value]) => document.set(key, value));
-      if (document.isActive) await deactivateOthers(document._id, session);
       return document.save({ session });
     });
     res.json(result);
@@ -72,7 +67,6 @@ exports.toggle = async (req, res, next) => {
     const result = await mutate(async (session) => {
       const document = await findDocument(req.params.id, session);
       document.isActive = fields.isActive ?? !document.isActive;
-      if (document.isActive) await deactivateOthers(document._id, session);
       return document.save({ session });
     });
     res.json(result);

@@ -33,12 +33,14 @@ function setup() {
       rows.set(this._id, this); return this;
     }
     static findById(key) { return { session: async (session) => { assert.ok(session); events.push('read'); return rows.get(key); } }; }
-    static async updateMany(filter, update, { session }) {
-      assert.ok(session); events.push('deactivate');
-      for (const document of rows.values()) if (document.isActive && document._id !== filter._id?.$ne) document.isActive = update.$set.isActive;
-    }
-    static findOne() { return { sort: () => ({ lean: async () => [...rows.values()].find((row) => row.isActive) }) }; }
-    static find() { return { sort: () => ({ lean: async () => [...rows.values()] }) }; }
+    static async updateMany() { throw new Error('Announcements must not deactivate each other'); }
+    static find(filter = {}) { return { sort: (order) => ({ lean: async () => {
+      if (filter.isActive) {
+        assert.equal(order.createdAt, 1); assert.equal(order._id, 1);
+        return [...rows.values()].filter((row) => row.isActive).sort((a, b) => a._id.localeCompare(b._id));
+      }
+      return [...rows.values()];
+    } }) }; }
   }
   const Lock = { updateOne: async (filter, update, options) => { events.push(options.session ? 'lock' : 'initialize'); } };
   const fakeMongoose = { startSession: async () => {
@@ -62,42 +64,52 @@ function setup() {
     return { data, error, status };
   } };
 }
-test('public endpoint returns null when empty and an active document after creation', async () => {
+test('public endpoint returns an empty array or all active documents in stable creation order', async () => {
   const app = setup();
-  assert.equal((await app.invoke('getActive')).data, null);
+  assert.equal((await app.invoke('getActive')).data.length, 0);
   const created = await app.invoke('create', { text: 'Free shipping!', badge: { type: 'offer', text: 'OFFER' }, isActive: true });
   assert.equal(created.status, 201);
   assert.equal(created.error, undefined);
-  assert.equal((await app.invoke('getActive')).data.text, 'Free shipping!');
-  assert.equal((await app.invoke('getAll')).data.length, 1);
-  assert.ok(app.events.indexOf('lock') < app.events.indexOf('deactivate'));
+  const second = (await app.invoke('create', { text: 'New launch', isActive: true })).data;
+  await app.invoke('create', { text: 'Hidden' });
+  await app.invoke('update', { text: 'Updated shipping' }, created.data._id);
+  const active = (await app.invoke('getActive')).data;
+  assert.equal(active.map((row) => row._id).join(','), [created.data._id, second._id].join(','));
+  assert.equal(active[0].text, 'Updated shipping');
+  assert.equal((await app.invoke('getAll')).data.length, 3);
 });
-test('create, update, and toggle all enforce a single active bar; toggle supports explicit status', async () => {
+
+test('create, update and toggle preserve other active announcements and support explicit status', async () => {
   const app = setup();
   const first = (await app.invoke('create', { text: 'First', isActive: true })).data;
   const second = (await app.invoke('create', { text: 'Second', isActive: true })).data;
-  assert.equal(first.isActive, false);
+  assert.equal(first.isActive, true); assert.equal(second.isActive, true);
   await app.invoke('update', { is_active: true, badge_text: 'HOT', badge_type: 'alert', target_url: 'https://example.com/sale' }, first._id);
-  assert.equal(first.badge.text, 'HOT'); assert.equal(second.isActive, false);
+  assert.equal(first.badge.text, 'HOT'); assert.equal(second.isActive, true);
   await app.invoke('toggle', {}, second._id);
-  assert.equal(first.isActive, false); assert.equal(second.isActive, true);
+  assert.equal(first.isActive, true); assert.equal(second.isActive, false);
+  await app.invoke('toggle', { isActive: true }, second._id);
+  await app.invoke('toggle', { isActive: true }, second._id);
+  assert.equal((await app.invoke('getActive')).data.length, 2);
   await app.invoke('toggle', { isActive: false }, second._id);
-  assert.equal((await app.invoke('getActive')).data, null);
-  await app.invoke('toggle', { isActive: true }, first._id);
-  await app.invoke('toggle', { isActive: true }, first._id);
-  assert.equal(first.isActive, true);
+  await app.invoke('toggle', { isActive: false }, first._id);
+  assert.equal((await app.invoke('getActive')).data.length, 0);
 });
-test('concurrent activations use the shared transaction lock, and retain only one active document', async () => {
+
+test('concurrent activations retain both active documents; same-document toggles serialize', async () => {
   const app = setup();
   const first = (await app.invoke('create', { text: 'One' })).data;
   const second = (await app.invoke('create', { text: 'Two' })).data;
   app.events.length = 0;
   const results = await Promise.all([app.invoke('toggle', {}, first._id), app.invoke('toggle', {}, second._id)]);
   results.forEach((result) => assert.equal(result.error, undefined));
-  assert.equal([...app.rows.values()].filter((row) => row.isActive).length, 1);
-  assert.deepEqual(app.events.filter((event) => !['initialize', 'end'].includes(event)), ['lock', 'read', 'deactivate', 'save', 'lock', 'read', 'deactivate', 'save']);
+  assert.equal([...app.rows.values()].filter((row) => row.isActive).length, 2);
+  assert.deepEqual(app.events.filter((event) => !['initialize', 'end'].includes(event)), ['lock', 'read', 'save', 'lock', 'read', 'save']);
+  await Promise.all([app.invoke('toggle', {}, first._id), app.invoke('toggle', {}, first._id)]);
+  assert.equal(first.isActive, true); assert.equal(second.isActive, true);
 });
-test('failed activation rolls back deactivation, and invalid or missing IDs preserve active bar', async () => {
+
+test('failed activation and invalid or missing IDs preserve existing visibility', async () => {
   const app = setup();
   const first = (await app.invoke('create', { text: 'One', isActive: true })).data;
   const second = (await app.invoke('create', { text: 'Two' })).data;
@@ -105,7 +117,8 @@ test('failed activation rolls back deactivation, and invalid or missing IDs pres
   assert.equal((await app.invoke('toggle', {}, id(999))).error.statusCode, 404);
   app.fail();
   assert.match((await app.invoke('toggle', {}, second._id)).error.message, /write failure/);
-  assert.equal((await app.invoke('getActive')).data._id, first._id);
+  const active = (await app.invoke('getActive')).data;
+  assert.equal(active.length, 1); assert.equal(active[0]._id, first._id);
 });
 test('reject invalid text, badge styles, labels, booleans, and unsafe action URLs before writes', async () => {
   const app = setup();
