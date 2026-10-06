@@ -39,8 +39,8 @@ test('disabling or changing the offer updates the calculation', () => {
 });
 
 test('bulk offer replaces percentage discounts only on eligible shirts', () => {
-  const discount = { first_time_discount_in_percentage: 10, additional_discount_in_percentage: 5, additional_discount_minimum_amount: 0 };
-  const result = quote([shirt(3), { productId: 'ceramics', quantity: 1, unitPrice: 200 }], { discount, isFirstOrder: true });
+  const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 10, isActive: true }, { ruleKey: 'milestone_discount', discountPercentage: 5, minPurchaseAmount: 0, isActive: true }];
+  const result = quote([shirt(3), { productId: 'ceramics', quantity: 1, unitPrice: 200 }], { discountRules, isFirstOrder: true });
   assert.equal(result.subtotal, 999 + 170);
   assert.equal(result.items[0].effectiveUnitPrice, 333);
   assert.equal(result.first_order_discount, 20);
@@ -48,7 +48,7 @@ test('bulk offer replaces percentage discounts only on eligible shirts', () => {
 });
 
 test('optional discount stacking and same-design quantities are supported', () => {
-  assert.equal(quote([shirt(3)], { offer: { ...offer, stackDiscounts: true }, discount: { first_time_discount_in_percentage: 10 }, isFirstOrder: true }).subtotal, 899.1);
+  assert.equal(quote([shirt(3)], { offer: { ...offer, stackDiscounts: true }, discountRules: [{ ruleKey: 'first_order_discount', discountPercentage: 10, isActive: true }], isFirstOrder: true }).subtotal, 899.1);
   assert.equal(quote([shirt(2), shirt(1, 'shirtB')], { offer: { ...offer, combineProducts: false } }).subtotal, 1497);
 });
 
@@ -64,7 +64,7 @@ test('existing product promotions aggregate different variants and remain separa
 });
 
 test('rounding keeps line quantities, saved totals, and payment totals exactly consistent', () => {
-  const result = quote([shirt(3)], { offer: { ...offer, unitPrice: 333.33, stackDiscounts: true }, discount: { first_time_discount_in_percentage: 7 }, isFirstOrder: true });
+  const result = quote([shirt(3)], { offer: { ...offer, unitPrice: 333.33, stackDiscounts: true }, discountRules: [{ ruleKey: 'first_order_discount', discountPercentage: 7, isActive: true }], isFirstOrder: true });
   const line = result.items[0];
   assert.equal(Math.round(line.effectiveUnitPrice * line.quantity * 100), Math.round(line.finalTotal * 100));
   assert.equal(result.subtotal, line.finalTotal);

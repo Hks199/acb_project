@@ -2,7 +2,7 @@ const Product = require('../models/inventoryModel');
 const ProductVariantSet = require('../models/variantModel');
 const TshirtOffer = require('../models/tshirtOfferModel');
 const Promotion = require('../models/promotionModel');
-const Discount = require('../models/discountModel');
+const { getActiveDiscountRules } = require('./discountRules');
 const Order = require('../models/orderModel');
 const mongoose = require('mongoose');
 const { CustomError } = require('../errors/CustomErrorHandler');
@@ -44,15 +44,15 @@ const quoteOrder = async (orderedItems, userId, { checkStock = true } = {}) => {
     resolved.push({ productId: id, variantId: variant ? String(variant._id) : null, quantity: item.quantity, unitPrice });
   }
   const now = new Date();
-  const [offer, promotions, discount, previousOrder] = await Promise.all([
+  const [offer, promotions, discountRules, orderCount] = await Promise.all([
     TshirtOffer.findOne({ key: 'tshirt' }).lean(),
     Promotion.find({ product_id: { $in: [...productCache.keys()] }, is_active: true,
       $and: [{ $or: [{ start_date: null }, { start_date: { $lte: now } }] },
         { $or: [{ end_date: null }, { end_date: { $gte: now } }] }] }).lean(),
-    Discount.findById('69abe13c74a49e13d7b1d041'),
-    userId ? Order.findOne({ user_id: userId, paymentStatus: 'Paid' }) : Promise.resolve(true),
+    getActiveDiscountRules(),
+    userId ? Order.countDocuments({ user_id: userId }) : Promise.resolve(1),
   ]);
-  return calculatePricing({ items: resolved, offer, promotions, discount, isFirstOrder: !previousOrder });
+  return calculatePricing({ items: resolved, offer, promotions, discountRules, isFirstOrder: orderCount === 0 });
 };
 
 module.exports = { quoteOrder };

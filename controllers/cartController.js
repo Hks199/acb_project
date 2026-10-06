@@ -239,7 +239,10 @@ const clearCartAfterPurchase = async(user_id,session)=>{
 
 const calculateCartTotalAmount = async (req, res, next) => {
   try {
-    const userId = req.params.userId || req.user?._id;
+    const userId = req.user?._id;
+    if (req.params.userId && String(req.params.userId) !== String(userId)) {
+      throw new CustomError('Forbidden', 'Cannot calculate another customer’s cart', 403);
+    }
     if (!userId) throw new CustomError("BadRequest", "User ID is required", 400);
     const cart = await Cart.findOne({ user_id: userId }).lean();
     if (!cart?.items?.length) return res.json({ success: true, ...calculatePricing({ items: [] }) });

@@ -76,6 +76,7 @@ app.use('/api/admin/announcements', require('./routes/adminAnnouncementRoutes'))
 app.use('/api/admin', require('./routes/adminAuthRoutes'));
 app.use('/api/promotional-popups', require('./routes/popupCampaignRoutes'));
 app.use('/api/admin/promotional-popups', require('./routes/adminPopupCampaignRoutes'));
+app.use('/api/admin/discount-rules', require('./routes/adminDiscountRuleRoutes'));
 // Global error handling middleware
 app.use(errorHandler);
 

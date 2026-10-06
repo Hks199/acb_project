@@ -14,8 +14,12 @@ const { createOrder,
     
  } = require("../controllers/orderController");
 
-router.post("/create", createOrder);
-router.post("/quote", getOrderQuote);
+router.post("/create", authMiddleware, createOrder);
+// Guests can preview prices; only verified customers receive a first-order discount.
+router.post("/quote", (req, res, next) => {
+  if (req.headers?.authorization || req.cookies?.token) return authMiddleware(req, res, next);
+  next();
+}, getOrderQuote);
 router.post("/verify", verifyPayment);
 router.post('/getUserOrderedProducts',getUserOrderedProducts);
 router.post('/listAllOrders',listAllOrders);

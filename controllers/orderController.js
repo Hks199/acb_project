@@ -12,7 +12,7 @@ const {generateOrderId} = require("../helpers/generateOrderId.js");
 
 const getOrderQuote = async (req, res, next) => {
   try {
-    const quote = await quoteOrder(req.body.orderedItems, req.body.user_id);
+    const quote = await quoteOrder(req.body.orderedItems, req.user?._id);
     res.json({ success: true, ...quote });
   } catch (error) { next(error); }
 };
@@ -20,7 +20,9 @@ const getOrderQuote = async (req, res, next) => {
 const createOrder = async (req, res, next) => {
   try {
     // Resolve stock, prices, and offers from the database. Client prices are never authoritative.
-    const { user_id, shippingAddress, paymentMethod } = req.body;
+    const { shippingAddress, paymentMethod } = req.body;
+    const user_id = req.user?._id;
+    if (!user_id) throw new CustomError('Unauthorized', 'Please log in to place an order', 401);
     const quote = await quoteOrder(req.body.orderedItems, user_id);
     const orderedItems = quote.items.map((item) => ({
       product_id: item.productId,

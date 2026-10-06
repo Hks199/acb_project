@@ -3,7 +3,7 @@ const rupees = (amount) => amount / 100;
 const percent = (value) => Math.min(100, Math.max(0, Number(value) || 0));
 
 // Calculate every line and summary in paise. The saved line totals add up to the payment amount.
-const calculatePricing = ({ items, offer, promotions = [], discount, isFirstOrder = false }) => {
+const calculatePricing = ({ items, offer, promotions = [], discountRules = [], isFirstOrder = false }) => {
   const eligibleIds = new Set((offer?.eligibleProductIds || []).map(String));
   const eligible = (item) => Boolean(offer?.enabled && item.variantId && eligibleIds.has(String(item.productId)));
   const counts = new Map();
@@ -35,9 +35,11 @@ const calculatePricing = ({ items, offer, promotions = [], discount, isFirstOrde
   const totalAfterPromo = lines.reduce((sum, line) => sum + line.unit * line.quantity, 0);
   let firstSavings = 0;
   let additionalSavings = 0;
-  const firstRate = isFirstOrder ? percent(discount?.first_time_discount_in_percentage) : 0;
-  const extraRate = totalAfterPromo >= paise(discount?.additional_discount_minimum_amount || 0)
-    ? percent(discount?.additional_discount_in_percentage) : 0;
+  const applies = (rule) => rule?.isActive === true && totalAfterPromo >= paise(rule.minPurchaseAmount ?? 0);
+  const firstRule = discountRules.find((rule) => rule.ruleKey === 'first_order_discount');
+  const milestoneRule = discountRules.find((rule) => rule.ruleKey === 'milestone_discount');
+  const firstRate = isFirstOrder && applies(firstRule) ? percent(firstRule.discountPercentage) : 0;
+  const extraRate = applies(milestoneRule) ? percent(milestoneRule.discountPercentage) : 0;
   const breakdown = lines.map((line) => {
     const stack = !line.bulkApplied || offer.stackDiscounts === true;
     const first = stack ? Math.round(line.unit * firstRate / 100) : 0;

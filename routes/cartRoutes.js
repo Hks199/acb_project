@@ -16,7 +16,7 @@ router.get("/getCartbyId/:user_id", getCart);
 router.patch("/updateCartItem", updateCartItem);
 router.post("/removeCartItem", removeCartItem);
 router.delete("/clearCart/:user_id", clearCart);
-router.post("/calculateCartTotalAmount/:userId",calculateCartTotalAmount);
+router.post("/calculateCartTotalAmount/:userId", authMiddleware, calculateCartTotalAmount);
 module.exports = router;
 
 // POST /cart/add
