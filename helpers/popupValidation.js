@@ -9,7 +9,7 @@ function validatePopup(body, partial = false) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new CustomError('InvalidInput', 'Invalid campaign.', 400);
   const result = {};
   const invalid = (message) => { throw new CustomError('InvalidInput', message, 400); };
-  const aliases = { imageUrl: 'image_url', ctaText: 'cta_text', ctaUrl: 'cta_url', couponCode: 'coupon_code', displayType: 'display_type', backgroundTheme: 'background_theme', isActive: 'is_active' };
+  const aliases = { imageUrl: 'image_url', ctaText: 'cta_text', ctaUrl: 'cta_url', couponCode: 'coupon_code', displayType: 'display_type', backgroundTheme: 'background_theme', imageFit: 'image_fit', imagePosition: 'image_position', showImageOnMobile: 'show_image_on_mobile', isActive: 'is_active' };
   const value = (key) => body[key] !== undefined ? body[key] : body[aliases[key]];
   for (const [key, maximum, required] of [['title', 120, true], ['subtitle', 500, false], ['ctaText', 50, true], ['imageUrl', 2048, false], ['ctaUrl', 2048, false], ['couponCode', 40, false]]) {
     const input = value(key);
@@ -19,9 +19,13 @@ function validatePopup(body, partial = false) {
   }
   if (result.imageUrl && !validTargetUrl(result.imageUrl)) invalid('Image must use an HTTP or HTTPS URL.');
   if (result.ctaUrl !== undefined && !validCtaUrl(result.ctaUrl)) invalid('CTA target must be an HTTP/HTTPS URL or a path starting with /.');
-  for (const [key, options] of [['displayType', displayTypes], ['backgroundTheme', themes]]) {
+  for (const [key, options] of [['displayType', displayTypes], ['backgroundTheme', themes], ['imageFit', ['cover', 'contain']], ['imagePosition', ['center', 'top', 'bottom', 'left', 'right']]]) {
     const input = value(key);
     if (input !== undefined) { if (!options.includes(input)) invalid(`Invalid ${key}.`); result[key] = input; }
+  }
+  if (value('showImageOnMobile') !== undefined) {
+    if (typeof value('showImageOnMobile') !== 'boolean') invalid('Mobile image visibility must be true or false.');
+    result.showImageOnMobile = value('showImageOnMobile');
   }
   if (value('isActive') !== undefined) {
     if (typeof value('isActive') !== 'boolean') invalid('Status must be true or false.');

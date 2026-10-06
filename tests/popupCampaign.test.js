@@ -142,3 +142,17 @@ test('all management, ordering, uploads and subscriber reads require a valid Adm
   }
   assert.equal(requests, 8);
 });
+
+test('image layout options persist and reject unsupported fits, positions and visibility values', async () => {
+  const app = setup();
+  const created = await app.invoke('create', { ...defaults, image_fit: 'contain', image_position: 'top', show_image_on_mobile: true });
+  assert.equal(created.error, undefined);
+  assert.equal(created.data.imageFit, 'contain'); assert.equal(created.data.imagePosition, 'top'); assert.equal(created.data.showImageOnMobile, true);
+  const updated = await app.invoke('update', { imageFit: 'cover', imagePosition: 'bottom', showImageOnMobile: false }, created.data._id);
+  assert.equal(updated.data.imageFit, 'cover'); assert.equal(updated.data.showImageOnMobile, false);
+  for (const fields of [{ imageFit: 'stretch' }, { imagePosition: 'invalid' }, { showImageOnMobile: 'false' }]) {
+    assert.equal((await app.invoke('update', fields, created.data._id)).error.statusCode, 400);
+  }
+  const legacy = new Model(defaults);
+  assert.equal(legacy.imageFit, 'cover'); assert.equal(legacy.imagePosition, 'center'); assert.equal(legacy.showImageOnMobile, true);
+});
