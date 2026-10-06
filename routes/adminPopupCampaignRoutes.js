@@ -1,0 +1,13 @@
+const router = require('express').Router();
+const { authMiddleware, roleMiddleware } = require('../middlewares/auth');
+const controller = require('../controllers/popupCampaignController');
+router.use(authMiddleware, roleMiddleware(['Admin']));
+router.get('/', controller.list);
+router.post('/', controller.create);
+router.put('/reorder', controller.reorder);
+router.post('/upload-image', controller.upload);
+router.get('/:id/subscriptions', controller.subscriptions);
+router.put('/:id', controller.update);
+router.patch('/:id/toggle', controller.toggle);
+router.delete('/:id', controller.remove);
+module.exports = router;
