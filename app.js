@@ -71,6 +71,9 @@ app.use("/api/return",returnOrder);
 app.use("/api",discount);
 app.use("/api/promotions", promotionRoutes);
 app.use("/api/tshirt-offer", require('./routes/tshirtOfferRoutes'));
+app.use('/api/announcement', require('./routes/announcementRoutes'));
+app.use('/api/admin/announcements', require('./routes/adminAnnouncementRoutes'));
+app.use('/api/admin', require('./routes/adminAuthRoutes'));
 // Global error handling middleware
 app.use(errorHandler);
 
