@@ -7,13 +7,17 @@ const { CustomError } = require('../errors/CustomErrorHandler');
 
 const productId = '000000000000000000000001';
 const { calculatePricing } = require('../helpers/calculatePricing');
-const setup = ({ productStock = 10, variantStock = 0, hasVariants = true, offer = null, discountRules = [], orderCount = 0 } = {}) => {
+const setup = ({ productStock = 10, variantStock = 0, hasVariants = true, offer = null, discountRules = [], orderCount = 0, orderHistory = null } = {}) => {
   let paymentOrders = 0;
   let savedOrders = 0;
   let paymentPayload;
   let savedOrder;
   const dependencies = {
-    '../models/orderModel': { countDocuments: async (filter) => { assert.equal(filter.user_id, 'customer'); assert.equal(filter.paymentStatus, undefined); return orderCount; }, create: async (orders) => { savedOrders++; savedOrder = orders[0]; } },
+    '../models/orderModel': { countDocuments: async (filter) => {
+      assert.equal(filter.user_id, 'customer');
+      assert.deepEqual(Array.from(filter.paymentStatus.$in), ['Paid', 'Refunded']);
+      return orderHistory ? orderHistory.filter((status) => filter.paymentStatus.$in.includes(status)).length : orderCount;
+    }, create: async (orders) => { savedOrders++; savedOrder = orders[0]; if (orderHistory) orderHistory.push('Pending'); } },
     '../models/inventoryModel': { findById: async () => ({ stock: productStock, isActive: true, price: 499 }) },
     '../models/variantModel': { findOne: async () => hasVariants ? { combinations: [{ _id: 'small', stock: variantStock, price: 499 }] } : null },
     '../models/tshirtOfferModel': { findOne: () => ({ lean: async () => offer }) },
@@ -65,7 +69,7 @@ const setup = ({ productStock = 10, variantStock = 0, hasVariants = true, offer 
     await module.exports.generateOrderBill({ body: { orderId: productId } }, res, (error) => { throw error; });
     return bill;
   };
-  return { invoke, cartQuote, invoice };
+  return { invoke, cartQuote, invoice, setOrderCount: (count) => { orderCount = count; } };
 };
 
 for (const variantStock of [0, -1]) {
@@ -95,18 +99,23 @@ test('in-stock selected variant creates a payment order', async () => {
   assert.equal(result.savedOrders, 1);
 });
 
-test('three eligible shirts charge ₹999 and store ₹333 per unit despite forged client pricing', async () => {
+test('first-time T-shirt buyer gets the same discounted total in cart, payment and saved order', async () => {
   const offer = { enabled: true, minimumQuantity: 3, unitPrice: 333, eligibleProductIds: [productId], combineProducts: true, stackDiscounts: false };
   const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 10, isActive: true }, { ruleKey: 'milestone_discount', discountPercentage: 5, minPurchaseAmount: 0, isActive: true }];
-  const result = await setup({ variantStock: 10, offer, discountRules }).invoke([
+  const app = setup({ variantStock: 10, offer, discountRules });
+  const items = [
     { product_id: productId, variant_combination_id: 'small', quantity: 3, price_per_unit: 1, total_price: 3 },
-  ]);
+  ];
+  const cart = await app.cartQuote(items);
+  const result = await app.invoke(items);
   assert.equal(result.error, undefined);
-  assert.equal(result.paymentPayload.amount, 99900);
-  assert.equal(result.savedOrder.subtotal, 999);
-  assert.equal(result.savedOrder.totalAmount, 999);
-  assert.equal(result.savedOrder.orderedItems[0].price_per_unit, 333);
-  assert.equal(result.savedOrder.orderedItems[0].total_price, 999);
+  assert.equal(cart.first_order_discount, 99.9);
+  assert.equal(cart.discountDetails.firstOrder.eligibleAmount, 999);
+  assert.equal(result.paymentPayload.amount, 89910);
+  assert.equal(result.savedOrder.subtotal, cart.totalAmountToPay);
+  assert.equal(result.savedOrder.totalAmount, 899.1);
+  assert.equal(result.savedOrder.orderedItems[0].price_per_unit, 299.7);
+  assert.equal(result.savedOrder.orderedItems[0].total_price, 899.1);
 });
 
 test('current rules control cart, payment and saved amounts; claimed customer IDs cannot change eligibility', async () => {
@@ -127,12 +136,72 @@ test('current rules control cart, payment and saved amounts; claimed customer ID
   assert.equal((await app.cartQuote(items)).subtotal, 1497);
 });
 
-test('an existing order, including pending orders, excludes the first-order reward', async () => {
+test('an existing successful purchase excludes the first-order reward', async () => {
   const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 12, isActive: true }];
   const app = setup({ hasVariants: false, discountRules, orderCount: 1 });
   const result = await app.invoke([{ product_id: productId, quantity: 1 }]);
   assert.equal(result.paymentPayload.amount, 49900);
   assert.equal(result.savedOrder.first_time_discount_in_amount, 0);
+});
+
+for (const orderHistory of [[], ['Pending'], ['Failed'], ['Pending', 'Failed']]) {
+  test(`first purchase discount survives unpaid checkout history: ${orderHistory.join(', ') || 'no orders'}`, async () => {
+    const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 10, isActive: true }];
+    const app = setup({ hasVariants: false, discountRules, orderHistory: [...orderHistory] });
+    const items = [{ product_id: productId, quantity: 1 }];
+    const cart = await app.cartQuote(items);
+    assert.equal(cart.first_order_discount, 49.9);
+    assert.equal(cart.totalAmountToPay, 449.1);
+    assert.equal(cart.discountDetails.firstOrder.applied, true);
+    const checkout = await app.invoke(items);
+    assert.equal(checkout.savedOrder.first_time_discount_in_amount, cart.first_order_discount);
+    assert.equal(checkout.savedOrder.totalAmount, cart.totalAmountToPay);
+    // A saved pending payment order must not make the cart lose the discount.
+    assert.equal((await app.cartQuote(items)).first_order_discount, 49.9);
+  });
+}
+
+for (const status of ['Paid', 'Refunded']) {
+  test(`${status} purchase prevents reusing the first-purchase discount`, async () => {
+    const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 12, isActive: true }];
+    const app = setup({ hasVariants: false, discountRules, orderHistory: ['Pending', status] });
+    const cart = await app.cartQuote([{ product_id: productId, quantity: 1 }]);
+    assert.equal(cart.first_order_discount, 0);
+    assert.equal(cart.discountDetails.firstOrder.reason, 'existing_order');
+  });
+}
+
+test('cart refresh checks order history and current admin percentages, threshold and switches', async () => {
+  const discountRules = [
+    { ruleKey: 'first_order_discount', discountPercentage: 10, isActive: true },
+    { ruleKey: 'milestone_discount', discountPercentage: 5, minPurchaseAmount: 4999, isActive: true },
+  ];
+  const app = setup({ hasVariants: false, productStock: 20, discountRules });
+  const items = [{ product_id: productId, quantity: 11 }];
+  let cart = await app.cartQuote(items);
+  assert.equal(cart.first_order_discount, 548.9);
+  assert.equal(cart.addition_discount, 274.45);
+
+  app.setOrderCount(1);
+  discountRules[0].discountPercentage = 12;
+  discountRules[1].discountPercentage = 7;
+  discountRules[1].minPurchaseAmount = 6000;
+  cart = await app.cartQuote(items);
+  assert.equal(cart.first_order_discount, 0);
+  assert.equal(cart.discountDetails.firstOrder.reason, 'existing_order');
+  assert.equal(cart.addition_discount, 0);
+  assert.equal(cart.discountDetails.milestone.minimumPurchaseAmount, 6000);
+
+  discountRules[1].minPurchaseAmount = 3999;
+  cart = await app.cartQuote(items);
+  assert.equal(cart.addition_discount, 384.23);
+  assert.equal(cart.discountDetails.milestone.percentage, 7);
+  assert.equal((await app.invoke(items)).savedOrder.totalAmount, cart.totalAmountToPay);
+
+  discountRules[1].isActive = false;
+  cart = await app.cartQuote(items);
+  assert.equal(cart.addition_discount, 0);
+  assert.equal(cart.totalAmountToPay, 5489);
 });
 
 test('repeated order lines cannot collectively exceed selected variant stock', async () => {

@@ -50,7 +50,9 @@ const quoteOrder = async (orderedItems, userId, { checkStock = true } = {}) => {
       $and: [{ $or: [{ start_date: null }, { start_date: { $lte: now } }] },
         { $or: [{ end_date: null }, { end_date: { $gte: now } }] }] }).lean(),
     getActiveDiscountRules(),
-    userId ? Order.countDocuments({ user_id: userId }) : Promise.resolve(1),
+    // Creating a payment order does not mean the customer has completed a purchase.
+    // Refunded purchases still consume first-order eligibility.
+    userId ? Order.countDocuments({ user_id: userId, paymentStatus: { $in: ['Paid', 'Refunded'] } }) : Promise.resolve(1),
   ]);
   return calculatePricing({ items: resolved, offer, promotions, discountRules, isFirstOrder: orderCount === 0 });
 };

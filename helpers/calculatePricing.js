@@ -42,7 +42,8 @@ const calculatePricing = ({ items, offer, promotions = [], discountRules = [], i
   const extraRate = applies(milestoneRule) ? percent(milestoneRule.discountPercentage) : 0;
   const breakdown = lines.map((line) => {
     const stack = !line.bulkApplied || offer.stackDiscounts === true;
-    const first = stack ? Math.round(line.unit * firstRate / 100) : 0;
+    // The first-purchase benefit applies to T-shirts at their offer price too.
+    const first = Math.round(line.unit * firstRate / 100);
     const extra = stack ? Math.min(line.unit - first, Math.round(line.unit * extraRate / 100)) : 0;
     firstSavings += first * line.quantity;
     additionalSavings += extra * line.quantity;
@@ -57,12 +58,34 @@ const calculatePricing = ({ items, offer, promotions = [], discountRules = [], i
   });
   const original = lines.reduce((sum, line) => sum + line.originalUnit * line.quantity, 0);
   const total = breakdown.reduce((sum, line) => sum + paise(line.finalTotal), 0);
+  const percentageBase = lines.reduce((sum, line) => (
+    !line.bulkApplied || offer.stackDiscounts === true ? sum + line.unit * line.quantity : sum
+  ), 0);
+  const describeDiscount = (rule, amount, firstOrderOnly = false) => {
+    const eligibleBase = firstOrderOnly ? totalAfterPromo : percentageBase;
+    const minimum = paise(rule?.minPurchaseAmount ?? 0);
+    let reason = null;
+    if (rule?.isActive !== true || percent(rule.discountPercentage) === 0) reason = 'inactive';
+    else if (firstOrderOnly && !isFirstOrder) reason = 'existing_order';
+    else if (totalAfterPromo < minimum) reason = 'below_minimum';
+    else if (eligibleBase === 0) reason = 'excluded_by_offer';
+    return {
+      percentage: percent(rule?.discountPercentage), minimumPurchaseAmount: rupees(minimum),
+      qualifyingAmount: rupees(totalAfterPromo), eligibleAmount: rupees(eligibleBase),
+      excludedAmount: rupees(totalAfterPromo - eligibleBase), amount: rupees(amount),
+      applied: amount > 0, reason,
+    };
+  };
   return {
     items: breakdown, totalAmount: rupees(original), totalAfterPromo: rupees(totalAfterPromo),
     promotion_savings: rupees(original - totalAfterPromo), first_order_discount: rupees(firstSavings),
     addition_discount: rupees(additionalSavings), totalAmountAfterDiscount: rupees(total),
     subtotal: rupees(total), tax: 0, deliveryCharge: 0, totalAmountToPay: rupees(total),
     uniqueItemCount: productCounts.size,
+    discountDetails: {
+      firstOrder: describeDiscount(firstRule, firstSavings, true),
+      milestone: describeDiscount(milestoneRule, additionalSavings),
+    },
     tshirtOffer: offer?.enabled && counts.size ? {
       minimumQuantity: offer.minimumQuantity, unitPrice: offer.unitPrice,
       eligibleQuantity: [...counts.values()].reduce((sum, count) => sum + count, 0),
