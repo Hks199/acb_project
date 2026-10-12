@@ -102,7 +102,18 @@ const editVariantSetByProductId = async (req, res, next) => {
 const updateVariantSet = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body };
+    if (Array.isArray(updates.combinations)) {
+      const existing = await ProductVariantSet.findById(id);
+      if (!existing) return res.status(404).json({ success: false, message: 'Variant set not found' });
+      // Editing prices or stock must not invalidate saved cart selections.
+      updates.combinations = updates.combinations.map((combination) => {
+        const previous = existing.combinations.find((entry) => entry.Size === combination.Size && entry.Color === combination.Color);
+        if (previous) return { ...combination, _id: previous._id };
+        const { _id, ...newCombination } = combination;
+        return newCombination;
+      });
+    }
 
     const updated = await ProductVariantSet.findByIdAndUpdate(id, updates, { new: true });
 

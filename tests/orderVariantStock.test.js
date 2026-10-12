@@ -7,7 +7,7 @@ const { CustomError } = require('../errors/CustomErrorHandler');
 
 const productId = '000000000000000000000001';
 const { calculatePricing } = require('../helpers/calculatePricing');
-const setup = ({ productStock = 10, variantStock = 0, hasVariants = true, offer = null, discountRules = [], orderCount = 0, orderHistory = null } = {}) => {
+const setup = ({ productStock = 10, variantStock = 0, hasVariants = true, offer = null, discountRules = [], orderCount = 0, orderHistory = null, categoryName = null } = {}) => {
   let paymentOrders = 0;
   let savedOrders = 0;
   let paymentPayload;
@@ -18,7 +18,8 @@ const setup = ({ productStock = 10, variantStock = 0, hasVariants = true, offer 
       assert.deepEqual(Array.from(filter.paymentStatus.$in), ['Paid', 'Refunded']);
       return orderHistory ? orderHistory.filter((status) => filter.paymentStatus.$in.includes(status)).length : orderCount;
     }, create: async (orders) => { savedOrders++; savedOrder = orders[0]; if (orderHistory) orderHistory.push('Pending'); } },
-    '../models/inventoryModel': { findById: async () => ({ stock: productStock, isActive: true, price: 499 }) },
+    '../models/inventoryModel': { findById: async () => ({ stock: productStock, isActive: true, price: 499, category_id: categoryName ? 'category' : null }) },
+    '../models/categoryModel': { findById: () => ({ lean: async () => ({ category: categoryName }) }) },
     '../models/variantModel': { findOne: async () => hasVariants ? { combinations: [{ _id: 'small', stock: variantStock, price: 499 }] } : null },
     '../models/tshirtOfferModel': { findOne: () => ({ lean: async () => offer }) },
     '../models/promotionModel': { find: () => ({ lean: async () => [] }) },
@@ -99,7 +100,7 @@ test('in-stock selected variant creates a payment order', async () => {
   assert.equal(result.savedOrders, 1);
 });
 
-test('first-time T-shirt buyer gets the same discounted total in cart, payment and saved order', async () => {
+test('first-time T-shirt buyer gets no first-order discount in cart, payment or saved order', async () => {
   const offer = { enabled: true, minimumQuantity: 3, unitPrice: 333, eligibleProductIds: [productId], combineProducts: true, stackDiscounts: false };
   const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 10, isActive: true }, { ruleKey: 'milestone_discount', discountPercentage: 5, minPurchaseAmount: 0, isActive: true }];
   const app = setup({ variantStock: 10, offer, discountRules });
@@ -109,14 +110,28 @@ test('first-time T-shirt buyer gets the same discounted total in cart, payment a
   const cart = await app.cartQuote(items);
   const result = await app.invoke(items);
   assert.equal(result.error, undefined);
-  assert.equal(cart.first_order_discount, 99.9);
-  assert.equal(cart.discountDetails.firstOrder.eligibleAmount, 999);
-  assert.equal(result.paymentPayload.amount, 89910);
+  assert.equal(cart.first_order_discount, 0);
+  assert.equal(cart.discountDetails.firstOrder.eligibleAmount, 0);
+  assert.equal(result.paymentPayload.amount, 99900);
   assert.equal(result.savedOrder.subtotal, cart.totalAmountToPay);
-  assert.equal(result.savedOrder.totalAmount, 899.1);
-  assert.equal(result.savedOrder.orderedItems[0].price_per_unit, 299.7);
-  assert.equal(result.savedOrder.orderedItems[0].total_price, 899.1);
+  assert.equal(result.savedOrder.totalAmount, 999);
+  assert.equal(result.savedOrder.orderedItems[0].price_per_unit, 333);
+  assert.equal(result.savedOrder.orderedItems[0].total_price, 999);
 });
+
+for (const categoryName of ['Unisex T shirt', 'T-shirts', 'Tshirts']) {
+  test(`${categoryName} category excludes a single shirt even without a bulk offer`, async () => {
+    const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 10, isActive: true }];
+    const app = setup({ variantStock: 5, categoryName, discountRules });
+    const items = [{ product_id: productId, variant_combination_id: 'small', quantity: 1 }];
+    const cart = await app.cartQuote(items);
+    const checkout = await app.invoke(items);
+    assert.equal(cart.first_order_discount, 0);
+    assert.equal(cart.discountDetails.firstOrder.reason, 'tshirt_excluded');
+    assert.equal(checkout.savedOrder.totalAmount, cart.totalAmountToPay);
+    assert.equal(checkout.paymentPayload.amount, 49900);
+  });
+}
 
 test('current rules control cart, payment and saved amounts; claimed customer IDs cannot change eligibility', async () => {
   const discountRules = [{ ruleKey: 'first_order_discount', discountPercentage: 12, isActive: true },
@@ -215,6 +230,23 @@ test('regular products do not require a variant selection', async () => {
   const result = await setup({ hasVariants: false }).invoke([{ product_id: productId, quantity: 1 }]);
   assert.equal(result.error, undefined);
   assert.equal(result.paymentOrders, 1);
+});
+
+test('cart never returns an incomplete total when a saved selection is stale', async () => {
+  const app = setup({ variantStock: 5 });
+  const items = [
+    { product_id: productId, variant_combination_id: 'small', quantity: 2 },
+    { product_id: productId, variant_combination_id: 'old-size', quantity: 1 },
+  ];
+  await assert.rejects(app.cartQuote(items), /Select the size\/color again/);
+  const checkout = await app.invoke(items);
+  assert.equal(checkout.error.customError, 'OutOfStock');
+  assert.equal(checkout.paymentOrders, 0);
+});
+
+test('a missing selection must be corrected before calculating the whole cart', async () => {
+  const app = setup({ variantStock: 5 });
+  await assert.rejects(app.cartQuote([{ product_id: productId, quantity: 1 }]), /Select the size\/color again/);
 });
 
 test('cart display, checkout charge, and saved order totals agree across sizes and mixed designs', async () => {

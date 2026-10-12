@@ -74,12 +74,11 @@ const getCart = async (req, res, next) => {
 
         const variantSet = await ProductVariantSet.findOne({
           productId: item.product_id,
-          "combinations._id": new mongoose.Types.ObjectId(item.variant_id),
         }).session(session);
 
         let variantDetails = null;
 
-        if (variantSet) {
+        if (variantSet && item.variant_id) {
           variantDetails = variantSet.combinations.find(
             (comb) => comb._id.toString() === item.variant_id.toString()
           );
@@ -87,12 +86,14 @@ const getCart = async (req, res, next) => {
 
         return {
           product: {
-            _id: product?._id,
-            name: product?.product_name,
+            _id: product?._id || item.product_id,
+            name: product?.product_name || 'Product no longer available',
             image: product?.imageUrls?.[0],
             stock: product?.stock,
           },
           quantity: item.quantity,
+          variant_id: item.variant_id || null,
+          selectionUnavailable: !product || Boolean((variantSet || item.variant_id) && !variantDetails),
           variant: variantDetails || null,
           fallback_price: product?.price || 0,
         };

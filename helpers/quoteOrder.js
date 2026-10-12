@@ -1,5 +1,6 @@
 const Product = require('../models/inventoryModel');
 const ProductVariantSet = require('../models/variantModel');
+const Category = require('../models/categoryModel');
 const TshirtOffer = require('../models/tshirtOfferModel');
 const Promotion = require('../models/promotionModel');
 const { getActiveDiscountRules } = require('./discountRules');
@@ -12,6 +13,7 @@ const quoteOrder = async (orderedItems, userId, { checkStock = true } = {}) => {
   if (!Array.isArray(orderedItems) || !orderedItems.length) throw new CustomError('BadRequest', 'No ordered items provided', 400);
   const resolved = [];
   const productCache = new Map();
+  const categoryCache = new Map();
   const productCounts = new Map();
   const variantCounts = new Map();
   for (const item of orderedItems) {
@@ -25,14 +27,15 @@ const quoteOrder = async (orderedItems, userId, { checkStock = true } = {}) => {
       productCache.set(id, { product, variants });
     }
     const { product, variants } = productCache.get(id);
+    const variant = variants?.combinations.find((combination) => String(combination._id) === String(item.variant_combination_id));
     if (!product) throw new CustomError('NotFound', 'Product not found', 404);
     const total = (productCounts.get(id) || 0) + item.quantity;
     productCounts.set(id, total);
     if (checkStock && (product.isActive === false || !(Number(product.stock) >= total))) {
       throw new CustomError('OutOfStock', 'Product unavailable', 400);
     }
-    const variant = variants?.combinations.find((combination) => String(combination._id) === String(item.variant_combination_id));
-    if ((variants || item.variant_combination_id) && !variant) throw new CustomError('OutOfStock', 'Product unavailable', 400);
+    if ((variants || item.variant_combination_id) && !variant) throw new CustomError('OutOfStock',
+      checkStock ? 'Product unavailable' : `Select the size/color again for ${product.product_name || 'this product'}, or remove it from your cart.`, 400);
     if (variant) {
       const key = `${id}:${variant._id}`;
       const variantTotal = (variantCounts.get(key) || 0) + item.quantity;
@@ -41,7 +44,13 @@ const quoteOrder = async (orderedItems, userId, { checkStock = true } = {}) => {
     }
     const unitPrice = Number(variant ? variant.price : product.price);
     if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new CustomError('InvalidPrice', 'Product price is unavailable', 400);
-    resolved.push({ productId: id, variantId: variant ? String(variant._id) : null, quantity: item.quantity, unitPrice });
+    const categoryId = product.category_id ? String(product.category_id) : null;
+    if (categoryId && !categoryCache.has(categoryId)) {
+      const category = await Category.findById(categoryId).lean();
+      categoryCache.set(categoryId, /\bt[\s-]*shirts?\b/i.test(category?.category || ''));
+    }
+    resolved.push({ productId: id, variantId: variant ? String(variant._id) : null,
+      quantity: item.quantity, unitPrice, isTshirt: categoryCache.get(categoryId) === true });
   }
   const now = new Date();
   const [offer, promotions, discountRules, orderCount] = await Promise.all([

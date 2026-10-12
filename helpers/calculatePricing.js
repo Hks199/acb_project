@@ -5,6 +5,7 @@ const percent = (value) => Math.min(100, Math.max(0, Number(value) || 0));
 // Calculate every line and summary in paise. The saved line totals add up to the payment amount.
 const calculatePricing = ({ items, offer, promotions = [], discountRules = [], isFirstOrder = false }) => {
   const eligibleIds = new Set((offer?.eligibleProductIds || []).map(String));
+  const firstOrderEligible = (item) => !item.isTshirt && !eligibleIds.has(String(item.productId));
   const eligible = (item) => Boolean(offer?.enabled && item.variantId && eligibleIds.has(String(item.productId)));
   const counts = new Map();
   for (const item of items) {
@@ -42,8 +43,7 @@ const calculatePricing = ({ items, offer, promotions = [], discountRules = [], i
   const extraRate = applies(milestoneRule) ? percent(milestoneRule.discountPercentage) : 0;
   const breakdown = lines.map((line) => {
     const stack = !line.bulkApplied || offer.stackDiscounts === true;
-    // The first-purchase benefit applies to T-shirts at their offer price too.
-    const first = Math.round(line.unit * firstRate / 100);
+    const first = firstOrderEligible(line) ? Math.round(line.unit * firstRate / 100) : 0;
     const extra = stack ? Math.min(line.unit - first, Math.round(line.unit * extraRate / 100)) : 0;
     firstSavings += first * line.quantity;
     additionalSavings += extra * line.quantity;
@@ -61,19 +61,23 @@ const calculatePricing = ({ items, offer, promotions = [], discountRules = [], i
   const percentageBase = lines.reduce((sum, line) => (
     !line.bulkApplied || offer.stackDiscounts === true ? sum + line.unit * line.quantity : sum
   ), 0);
+  const firstOrderBase = lines.reduce((sum, line) => (
+    firstOrderEligible(line) ? sum + line.unit * line.quantity : sum
+  ), 0);
   const describeDiscount = (rule, amount, firstOrderOnly = false) => {
-    const eligibleBase = firstOrderOnly ? totalAfterPromo : percentageBase;
+    const eligibleBase = firstOrderOnly ? firstOrderBase : percentageBase;
     const minimum = paise(rule?.minPurchaseAmount ?? 0);
     let reason = null;
     if (rule?.isActive !== true || percent(rule.discountPercentage) === 0) reason = 'inactive';
     else if (firstOrderOnly && !isFirstOrder) reason = 'existing_order';
     else if (totalAfterPromo < minimum) reason = 'below_minimum';
-    else if (eligibleBase === 0) reason = 'excluded_by_offer';
+    else if (eligibleBase === 0) reason = firstOrderOnly ? 'tshirt_excluded' : 'excluded_by_offer';
     return {
       percentage: percent(rule?.discountPercentage), minimumPurchaseAmount: rupees(minimum),
       qualifyingAmount: rupees(totalAfterPromo), eligibleAmount: rupees(eligibleBase),
       excludedAmount: rupees(totalAfterPromo - eligibleBase), amount: rupees(amount),
       applied: amount > 0, reason,
+      ...(firstOrderOnly ? { exclusion: 'tshirt' } : {}),
     };
   };
   return {
