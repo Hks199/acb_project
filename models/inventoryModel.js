@@ -18,7 +18,7 @@ const productSchema = new mongoose.Schema(
     vendor_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor",
-      required: true,
+      default: null,
     },
 
     product_name: {

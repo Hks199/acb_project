@@ -19,7 +19,7 @@ const createProduct = async (req, res, next) => {
     } = req.body;
     
     // Basic validation
-    if (!category_id || !vendor_id || !product_name || !description || !price || !imageUrls) {
+    if (!category_id || !product_name || !description || !price || !imageUrls) {
       throw new CustomError("Missing required fields", 400);
     }
 
